@@ -235,6 +235,9 @@ class SubAccountService
         $enabled = $this->isEnabled();
         $maxCount = $this->getMaxCount();
         $relations = SubAccountRelation::where('parent_user_id', $parent->id)
+            // 已解绑(归档)的关系不再出现在主账号列表中（历史仍保留在库与审计中，
+            // 管理端可在「子账号关系」里查看/筛选 status=0 的记录）。
+            ->where('status', SubAccountRelation::STATUS_ENABLED)
             ->orderBy('id', 'asc')
             ->get();
 
