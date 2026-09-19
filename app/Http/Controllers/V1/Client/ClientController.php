@@ -8,6 +8,7 @@ use App\Protocols\Singbox\Singbox;
 use App\Protocols\Singbox\SingboxOld;
 use App\Protocols\ClashMeta;
 use App\Services\ServerService;
+use App\Services\SubAccountService;
 use App\Services\UserService;
 use App\Utils\Helper;
 use Illuminate\Http\Request;
@@ -23,14 +24,18 @@ class ClientController extends Controller
         // account not expired and is not banned.
         $userService = new UserService();
         if ($userService->isAvailable($user)) {
+            // 子账号: 订阅渲染使用主账号的有效权益（套餐/组/到期/限速/设备数/剩余流量），
+            // 但节点凭据仍是子账号自己的 id/uuid/token。普通用户原样返回。
+            $subAccountService = new SubAccountService();
+            $renderUser = $subAccountService->effectiveSubscriptionUser($user);
             $serverService = new ServerService();
-            $servers = $serverService->getAvailableServers($user);
+            $servers = $serverService->getAvailableServers($renderUser);
             if($flag) {
                 if (!strpos($flag, 'sing')) {
-                    $this->setSubscribeInfoToServers($servers, $user);
+                    $this->setSubscribeInfoToServers($servers, $renderUser);
                     foreach (array_reverse(glob(app_path('Protocols') . '/*.php')) as $file) {
                         $file = 'App\\Protocols\\' . basename($file, '.php');
-                        $class = new $file($user, $servers);
+                        $class = new $file($renderUser, $servers);
                         if (strpos($flag, $class->flag) !== false) {
                             return $class->handle();
                         }
@@ -42,14 +47,14 @@ class ClientController extends Controller
                         $version = $matches[1];
                     }
                     if (!is_null($version) && $version >= '1.12.0') {
-                        $class = new Singbox($user, $servers);
+                        $class = new Singbox($renderUser, $servers);
                     } else {
-                        $class = new SingboxOld($user, $servers);
+                        $class = new SingboxOld($renderUser, $servers);
                     }
                     return $class->handle();
                 }
             }
-            $class = new General($user, $servers);
+            $class = new General($renderUser, $servers);
             return $class->handle();
         }
     }

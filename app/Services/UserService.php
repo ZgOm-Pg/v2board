@@ -145,6 +145,13 @@ class UserService
 
     public function isAvailable(User $user)
     {
+        // 子账号功能开启时，可用性统一走集中式权益解析器：
+        //   - 普通用户: 与改造前逐条等价（封禁/有额度/未过期）；
+        //   - 子账号:   按主账号的有效套餐、到期时间与剩余额度判断。
+        if ((int)config('v2board.sub_account_enable', 1)) {
+            $entitlement = (new SubAccountService())->resolveEntitlement($user);
+            return $entitlement->canConnect();
+        }
         if (!$user->banned && $user->transfer_enable && ($user->expired_at > time() || $user->expired_at === NULL)) {
             return true;
         }
