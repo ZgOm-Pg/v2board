@@ -32,6 +32,18 @@ $failed = 0;
 $tag = 'e2e-' . substr(md5((string)microtime(true)), 0, 8);
 $createdUserIds = [];
 
+// 无论中途是否失败，都要清理本次创建的测试数据
+register_shutdown_function(function () use (&$createdUserIds) {
+    try {
+        \App\Models\SubAccountAuditLog::whereIn('parent_user_id', $createdUserIds)
+            ->orWhereIn('child_user_id', $createdUserIds)->delete();
+        \App\Models\SubAccountRelation::whereIn('parent_user_id', $createdUserIds)
+            ->orWhereIn('child_user_id', $createdUserIds)->delete();
+        \App\Models\User::whereIn('id', $createdUserIds)->delete();
+    } catch (\Throwable $e) {
+    }
+});
+
 function check($name, $cond, $detail = '')
 {
     global $passed, $failed;
@@ -47,7 +59,10 @@ function check($name, $cond, $detail = '')
 function http($method, $url, $body = null, $headers = [], $json = false)
 {
     $ch = curl_init($url);
-    $h = $headers;
+    $h = [];
+    foreach ($headers as $k => $v) {
+        $h[] = (is_int($k) ? $v : "{$k}: {$v}");
+    }
     if ($body !== null) {
         if ($json) {
             $payload = json_encode($body, JSON_UNESCAPED_UNICODE);
@@ -73,7 +88,7 @@ function http($method, $url, $body = null, $headers = [], $json = false)
 echo "===== 0. 实例可用性 =====\n";
 $root = http('GET', $base . '/');
 check('面板首页可访问', $root['status'] === 200, 'HTTP ' . $root['status']);
-$adminPath = config('v2board.secure_path');
+$adminPath = config('v2board.secure_path', config('v2board.frontend_admin_path', hash('crc32b', config('app.key'))));
 $admin = http('GET', $base . '/' . $adminPath);
 check('后台页面可访问', $admin['status'] === 200, 'HTTP ' . $admin['status'] . ' /' . $adminPath);
 check('后台加载子账号 JS 资源', strpos((string)$admin['raw'], 'subaccount-admin-page.js') !== false);
@@ -121,8 +136,17 @@ $normal->created_at = time(); $normal->updated_at = time();
 $normal->save();
 $createdUserIds[] = $normal->id;
 
-// 目标库是否已有可用套餐
+// 目标库是否已有可用套餐（测试实例如为空则补一条测试套餐）
 $planId = Illuminate\Support\Facades\DB::table('v2_plan')->value('id');
+if ($planId === null) {
+    Illuminate\Support\Facades\DB::table('v2_plan')->insert([
+        'id' => 1, 'group_id' => 1, 'transfer_enable' => 102400, 'device_limit' => 3,
+        'name' => 'Acceptance Test Plan', 'speed_limit' => 100, 'show' => 1, 'sort' => 1,
+        'renew' => 1, 'content' => 'test', 'reset_traffic_method' => 0,
+        'created_at' => time(), 'updated_at' => time(),
+    ]);
+    $planId = 1;
+}
 check('存在可用套餐(用于父账号)', $planId !== null, 'plan_id=' . var_export($planId, true));
 $parent->plan_id = $planId;
 $parent->save();

@@ -78,6 +78,15 @@ $tag = 'redis-' . substr(md5((string)microtime(true)), 0, 6);
 echo "===== Redis 流量测试（tag={$tag}）=====\n";
 
 $planId = DB::table('v2_plan')->value('id');
+if ($planId === null) {
+    DB::table('v2_plan')->insert([
+        'id' => 1, 'group_id' => 1, 'transfer_enable' => 102400, 'device_limit' => 3,
+        'name' => 'Traffic Test Plan', 'speed_limit' => 100, 'show' => 1, 'sort' => 1,
+        'renew' => 1, 'content' => 'test', 'reset_traffic_method' => 0,
+        'created_at' => time(), 'updated_at' => time(),
+    ]);
+    $planId = 1;
+}
 $parent = makeUser([
     'email' => "{$tag}-parent@example.com", 'group_id' => 1, 'plan_id' => $planId,
     'expired_at' => time() + 86400 * 30, 'transfer_enable' => 100 * 1024 * MB,
