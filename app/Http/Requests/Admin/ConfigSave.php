@@ -104,6 +104,11 @@ class ConfigSave extends FormRequest
         'password_limit_enable' => 'in:0,1',
         'password_limit_count' => 'integer',
         'password_limit_expire' => 'integer',
+        // sub account
+        'sub_account_enable' => 'in:0,1',
+        'sub_account_max_count' => 'integer|min:1',
+        'sub_account_email_code_ttl' => 'integer|min:30',
+        'sub_account_email_code_interval' => 'integer|min:5',
     ];
     /**
      * Get the validation rules that apply to the request.

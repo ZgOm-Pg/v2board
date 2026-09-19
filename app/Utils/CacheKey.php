@@ -38,7 +38,9 @@ class CacheKey
         'LAST_SEND_LOGIN_WITH_MAIL_LINK_TIMESTAMP' => '最后一次发送登入链接时间',
         'PASSWORD_ERROR_LIMIT' => '密码错误次数限制',
         'USER_SESSIONS' => '用户session',
-        'FORGET_REQUEST_LIMIT' => '找回密码次数限制'
+        'FORGET_REQUEST_LIMIT' => '找回密码次数限制',
+        'SUB_ACCOUNT_EMAIL_CODE' => '子账号绑定邮箱验证码',
+        'SUB_ACCOUNT_EMAIL_CODE_LAST_SEND' => '子账号绑定验证码最后发送时间'
     ];
 
     public static function get(string $key, $uniqueValue)
