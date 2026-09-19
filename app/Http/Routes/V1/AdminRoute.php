@@ -116,6 +116,15 @@ class AdminRoute
             $router->post('/user/delUser', 'V1\\Admin\\UserController@delUser');
             $router->post('/user/allDel', 'V1\\Admin\\UserController@allDel');
             $router->post('/user/setInviteUser', 'V1\\Admin\\UserController@setInviteUser');
+            // Sub-account（独立后台页面使用，复用 secure_path + admin 中间件）
+            $router->get ('/sub-account/fetch', 'V1\\Admin\\SubAccountController@fetch');
+            $router->get ('/sub-account/detail', 'V1\\Admin\\SubAccountController@detail');
+            $router->get ('/sub-account/audit', 'V1\\Admin\\SubAccountController@audit');
+            $router->get ('/sub-account/status', 'V1\\Admin\\SubAccountController@status');
+            $router->post('/sub-account/update', 'V1\\Admin\\SubAccountController@update');
+            $router->post('/sub-account/unbind', 'V1\\Admin\\SubAccountController@unbind');
+            $router->post('/sub-account/reset-subscribe', 'V1\\Admin\\SubAccountController@resetSubscribe');
+            $router->post('/sub-account/reset-traffic', 'V1\\Admin\\SubAccountController@resetTraffic');
             // Stat
             $router->get ('/stat/getStat', 'V1\\Admin\\StatController@getStat');
             $router->get ('/stat/getOverride', 'V1\\Admin\\StatController@getOverride');
