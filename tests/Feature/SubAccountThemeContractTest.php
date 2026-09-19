@@ -25,7 +25,7 @@ use Illuminate\Http\Request;
  */
 class SubAccountThemeContractTest extends SubAccountTestCase
 {
-    private function service(): SubAccountService
+    protected function service(): SubAccountService
     {
         return new SubAccountService();
     }
