@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="/assets/admin/components.chunk.css?v={{$version}}">
     <link rel="stylesheet" href="/assets/admin/umi.css?v={{$version}}">
     <link rel="stylesheet" href="/assets/admin/custom.css?v={{$version}}">
+    <link rel="stylesheet" href="/assets/admin/subaccount-admin-page.css?v={{$version}}">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
     <title>{{$title}}</title>
@@ -31,6 +32,7 @@
 <script src="/assets/admin/vendors.async.js?v={{$version}}"></script>
 <script src="/assets/admin/components.async.js?v={{$version}}"></script>
 <script src="/assets/admin/umi.js?v={{$version}}"></script>
+<script src="/assets/admin/subaccount-admin-page.js?v={{$version}}"></script>
 </body>
 
 </html>

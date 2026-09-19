@@ -1,0 +1,671 @@
+/*!
+ * 子账号管理 - 独立页面样式
+ *
+ * 所有选择器均以 #subaccount-admin-root 作用域限定，
+ * 不会影响 umi SPA 的其它界面。
+ */
+
+#subaccount-admin-root {
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    overflow: auto;
+    box-sizing: border-box;
+    color: #1f2329;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+#subaccount-admin-root *,
+#subaccount-admin-root *::before,
+#subaccount-admin-root *::after {
+    box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------------- 顶栏 */
+
+#subaccount-admin-root .sa-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #e6e8eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+#subaccount-admin-root .sa-header-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+#subaccount-admin-root .sa-header-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2329;
+}
+
+#subaccount-admin-root .sa-header-sub {
+    font-size: 12px;
+    color: #8a919f;
+}
+
+#subaccount-admin-root .sa-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ---------------------------------------------------------------- Tab */
+
+#subaccount-admin-root .sa-tabbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 16px 0;
+    background: #fafbfc;
+    border-bottom: 1px solid #e6e8eb;
+}
+
+#subaccount-admin-root .sa-tabbar-title {
+    display: none;
+}
+
+#subaccount-admin-root .sa-tab {
+    appearance: none;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    color: #5d6470;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+#subaccount-admin-root .sa-tab:hover {
+    color: #1677ff;
+    background: #f0f5ff;
+}
+
+#subaccount-admin-root .sa-tab.sa-tab-active {
+    color: #1677ff;
+    background: #ffffff;
+    border-color: #e6e8eb;
+    font-weight: 600;
+    margin-bottom: -1px;
+}
+
+#subaccount-admin-root .sa-panels {
+    padding: 14px 16px 28px;
+}
+
+#subaccount-admin-root .sa-panel {
+    display: none;
+}
+
+/* ---------------------------------------------------------------- 提示条 */
+
+#subaccount-admin-root .sa-banner {
+    margin-bottom: 12px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    border: 1px solid transparent;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+#subaccount-admin-root .sa-banner-error {
+    background: #fff2f0;
+    border-color: #ffccc7;
+    color: #cf1322;
+}
+
+#subaccount-admin-root .sa-banner-success {
+    background: #f6ffed;
+    border-color: #b7eb8f;
+    color: #389e0d;
+}
+
+#subaccount-admin-root .sa-banner-info {
+    background: #e6f4ff;
+    border-color: #91caff;
+    color: #0958d9;
+}
+
+/* ---------------------------------------------------------------- 卡片 */
+
+#subaccount-admin-root .sa-card {
+    background: #ffffff;
+    border: 1px solid #e6e8eb;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+
+#subaccount-admin-root .sa-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f1f3;
+    background: #fcfcfd;
+}
+
+#subaccount-admin-root .sa-card-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2329;
+}
+
+#subaccount-admin-root .sa-card-extra {
+    display: flex;
+    gap: 8px;
+}
+
+#subaccount-admin-root .sa-card-body {
+    padding: 12px 14px;
+}
+
+#subaccount-admin-root .sa-loading {
+    padding: 10px 14px;
+    color: #1677ff;
+    font-size: 13px;
+    background: #f5f9ff;
+    border-top: 1px solid #e6f4ff;
+}
+
+#subaccount-admin-root .sa-loading::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border: 2px solid #91caff;
+    border-top-color: #1677ff;
+    border-radius: 50%;
+    vertical-align: -1px;
+}
+
+#subaccount-admin-root .sa-error {
+    padding: 10px 14px;
+    color: #cf1322;
+    background: #fff2f0;
+    border-top: 1px solid #ffccc7;
+    font-size: 13px;
+    word-break: break-word;
+}
+
+/* ---------------------------------------------------------------- 过滤栏 */
+
+#subaccount-admin-root .sa-filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    background: #fafbfc;
+    border: 1px solid #e6e8eb;
+    border-radius: 8px;
+}
+
+#subaccount-admin-root .sa-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+#subaccount-admin-root .sa-field-wide {
+    flex: 1 1 220px;
+}
+
+#subaccount-admin-root .sa-label {
+    font-size: 12px;
+    color: #5d6470;
+    white-space: nowrap;
+}
+
+#subaccount-admin-root .sa-input,
+#subaccount-admin-root .sa-select {
+    height: 30px;
+    padding: 0 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #1f2329;
+    background: #fff;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    outline: none;
+    max-width: 100%;
+}
+
+#subaccount-admin-root .sa-input:focus,
+#subaccount-admin-root .sa-select:focus {
+    border-color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+/* ---------------------------------------------------------------- 按钮 */
+
+#subaccount-admin-root .sa-btn {
+    appearance: none;
+    height: 30px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #1f2329;
+    background: #ffffff;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+#subaccount-admin-root .sa-btn:hover:not(:disabled) {
+    color: #1677ff;
+    border-color: #1677ff;
+}
+
+#subaccount-admin-root .sa-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+#subaccount-admin-root .sa-btn-primary {
+    color: #ffffff;
+    background: #1677ff;
+    border-color: #1677ff;
+}
+
+#subaccount-admin-root .sa-btn-primary:hover:not(:disabled) {
+    color: #ffffff;
+    background: #4096ff;
+    border-color: #4096ff;
+}
+
+#subaccount-admin-root .sa-btn-ghost {
+    color: #5d6470;
+    background: #ffffff;
+}
+
+#subaccount-admin-root .sa-btn-danger {
+    color: #ffffff;
+    background: #ff4d4f;
+    border-color: #ff4d4f;
+}
+
+#subaccount-admin-root .sa-btn-danger:hover:not(:disabled) {
+    color: #ffffff;
+    background: #ff7875;
+    border-color: #ff7875;
+}
+
+#subaccount-admin-root .sa-btn-mini {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 12px;
+    border-radius: 5px;
+}
+
+/* ---------------------------------------------------------------- 表格 */
+
+#subaccount-admin-root .sa-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e6e8eb;
+    border-radius: 6px;
+}
+
+#subaccount-admin-root .sa-table {
+    width: 100%;
+    min-width: 1180px;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+#subaccount-admin-root .sa-table th,
+#subaccount-admin-root .sa-table td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid #f0f1f3;
+    white-space: nowrap;
+}
+
+#subaccount-admin-root .sa-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f5f6f8;
+    color: #414750;
+    font-weight: 600;
+    border-bottom: 1px solid #e6e8eb;
+}
+
+#subaccount-admin-root .sa-table tbody tr:hover {
+    background: #fafcff;
+}
+
+#subaccount-admin-root .sa-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#subaccount-admin-root .sa-empty-row:hover {
+    background: transparent;
+}
+
+#subaccount-admin-root .sa-empty {
+    text-align: center;
+    color: #8a919f;
+    padding: 26px 10px !important;
+}
+
+#subaccount-admin-root .sa-col-id {
+    font-variant-numeric: tabular-nums;
+    color: #414750;
+}
+
+#subaccount-admin-root .sa-col-account {
+    white-space: normal;
+    min-width: 170px;
+}
+
+#subaccount-admin-root .sa-email {
+    display: block;
+    color: #1f2329;
+    word-break: break-all;
+}
+
+#subaccount-admin-root .sa-uid {
+    display: block;
+    color: #8a919f;
+    font-size: 11.5px;
+}
+
+#subaccount-admin-root .sa-col-remark {
+    max-width: 180px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+#subaccount-admin-root .sa-col-actions {
+    white-space: normal;
+    min-width: 190px;
+}
+
+#subaccount-admin-root .sa-col-actions .sa-btn {
+    margin: 0 4px 4px 0;
+}
+
+#subaccount-admin-root .sa-col-actor {
+    max-width: 200px;
+    white-space: normal;
+    word-break: break-all;
+}
+
+#subaccount-admin-root .sa-col-ip {
+    font-variant-numeric: tabular-nums;
+    color: #5d6470;
+}
+
+#subaccount-admin-root .sa-col-meta {
+    max-width: 260px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+#subaccount-admin-root .sa-json {
+    display: inline-block;
+    padding: 1px 5px;
+    background: #f5f6f8;
+    border: 1px solid #eceef1;
+    border-radius: 4px;
+    font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+    font-size: 11.5px;
+    color: #414750;
+}
+
+#subaccount-admin-root .sa-editing-row {
+    background: #f0f7ff;
+}
+
+#subaccount-admin-root .sa-editing-row:hover {
+    background: #f0f7ff;
+}
+
+#subaccount-admin-root .sa-editing-row .sa-input,
+#subaccount-admin-root .sa-editing-row .sa-select {
+    width: 100%;
+    min-width: 90px;
+}
+
+/* ---------------------------------------------------------------- 状态药丸 / 动作标签 */
+
+#subaccount-admin-root .sa-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 18px;
+    border: 1px solid transparent;
+}
+
+#subaccount-admin-root .sa-pill-on {
+    color: #389e0d;
+    background: #f6ffed;
+    border-color: #b7eb8f;
+}
+
+#subaccount-admin-root .sa-pill-off {
+    color: #8a919f;
+    background: #f5f6f8;
+    border-color: #e0e3e8;
+}
+
+#subaccount-admin-root .sa-action-tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #0958d9;
+    background: #e6f4ff;
+    border: 1px solid #91caff;
+}
+
+/* ---------------------------------------------------------------- 分页 */
+
+#subaccount-admin-root .sa-pager {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 2px 2px;
+    flex-wrap: wrap;
+}
+
+#subaccount-admin-root .sa-pager-info {
+    margin-left: auto;
+    color: #5d6470;
+    font-size: 12.5px;
+}
+
+/* ---------------------------------------------------------------- 设置表单 */
+
+#subaccount-admin-root .sa-hint {
+    margin: 0 0 12px;
+    color: #8a919f;
+    font-size: 12.5px;
+}
+
+#subaccount-admin-root .sa-form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px dashed #eceef1;
+}
+
+#subaccount-admin-root .sa-form-row:last-of-type {
+    border-bottom: none;
+}
+
+#subaccount-admin-root .sa-form-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+}
+
+#subaccount-admin-root .sa-form-label > span {
+    color: #1f2329;
+    font-size: 13px;
+}
+
+#subaccount-admin-root .sa-form-label > small {
+    color: #8a919f;
+    font-size: 12px;
+}
+
+#subaccount-admin-root .sa-form-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#subaccount-admin-root .sa-form-footer {
+    display: flex;
+    gap: 8px;
+    padding-top: 14px;
+    margin-top: 6px;
+    border-top: 1px solid #f0f1f3;
+}
+
+/* 开关 */
+
+#subaccount-admin-root .sa-switch {
+    appearance: none;
+    min-width: 78px;
+    height: 28px;
+    padding: 0 12px 0 26px;
+    position: relative;
+    font-size: 12.5px;
+    font-family: inherit;
+    border-radius: 14px;
+    cursor: pointer;
+    border: 1px solid #d0d5dd;
+    background: #f5f6f8;
+    color: #5d6470;
+    transition: all 0.15s ease;
+}
+
+#subaccount-admin-root .sa-switch::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: #bfc4cc;
+    transition: all 0.15s ease;
+}
+
+#subaccount-admin-root .sa-switch-on {
+    color: #ffffff;
+    background: #1677ff;
+    border-color: #1677ff;
+    padding: 0 26px 0 12px;
+}
+
+#subaccount-admin-root .sa-switch-on::before {
+    left: auto;
+    right: 4px;
+    background: #ffffff;
+}
+
+/* 健康摘要 */
+
+#subaccount-admin-root .sa-health-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#subaccount-admin-root .sa-health-item {
+    flex: 1 1 160px;
+    min-width: 140px;
+    padding: 10px 12px;
+    border: 1px solid #e6e8eb;
+    border-radius: 6px;
+    background: #fcfcfd;
+}
+
+#subaccount-admin-root .sa-health-label {
+    display: block;
+    color: #8a919f;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+#subaccount-admin-root .sa-health-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2329;
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+}
+
+#subaccount-admin-root .sa-health-ok {
+    color: #389e0d;
+}
+
+#subaccount-admin-root .sa-health-off {
+    color: #8a919f;
+}
+
+#subaccount-admin-root .sa-health-warn {
+    color: #d46b08;
+}
+
+#subaccount-admin-root .sa-health-bad {
+    color: #cf1322;
+}
+
+/* 窄屏适配 */
+
+@media (max-width: 720px) {
+    #subaccount-admin-root .sa-header {
+        padding: 8px 10px;
+    }
+
+    #subaccount-admin-root .sa-panels {
+        padding: 10px;
+    }
+
+    #subaccount-admin-root .sa-form-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    #subaccount-admin-root .sa-pager-info {
+        margin-left: 0;
+    }
+}
