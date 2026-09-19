@@ -63,7 +63,7 @@ class SubAccountController extends Controller
     {
         return response($this->service->adminUpdate(
             $request->input('id'),
-            $request->only(['traffic_limit', 'remark', 'status']),
+            $request->only(['traffic_limit', 'traffic_limit_gb', 'remark', 'status']),
             $this->actorId($request),
             $request->ip()
         ));

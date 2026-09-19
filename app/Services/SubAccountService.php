@@ -759,8 +759,10 @@ class SubAccountService
             if (!$locked) throw new \Exception(__('The sub-account relation does not exist'));
 
             $changed = [];
-            if (array_key_exists('traffic_limit', $input)) {
-                $limit = $this->normalizeTrafficLimit($input['traffic_limit']);
+            // EZ-Theme 只提交 traffic_limit_gb（GB）；兼容字节语义的 traffic_limit。
+            $limitInput = $this->resolveTrafficLimitInput($input, null);
+            if ($limitInput !== null) {
+                $limit = $limitInput;
                 if ($limit !== (int)$locked->traffic_limit) {
                     $changed['traffic_limit'] = $limit;
                     $locked->traffic_limit = $limit;
@@ -1213,8 +1215,10 @@ class SubAccountService
         try {
             $locked = SubAccountRelation::lockForUpdate()->find($relation->id);
             $changed = [];
-            if (array_key_exists('traffic_limit', $input)) {
-                $limit = $this->normalizeTrafficLimit($input['traffic_limit']);
+            // 管理端允许传字节(traffic_limit)或 GB(traffic_limit_gb)
+            $limitInput = $this->resolveTrafficLimitInput($input, null);
+            if ($limitInput !== null) {
+                $limit = $limitInput;
                 if ($limit !== (int)$locked->traffic_limit) {
                     $changed['traffic_limit'] = $limit;
                     $locked->traffic_limit = $limit;
