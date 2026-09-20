@@ -1,17 +1,27 @@
 <?php
 /**
- * 子账号功能 — 独立实例的真实 HTTP 验收脚本（在测试实例目录内执行）。
+ * 子账号功能 — 真实 HTTP 验收脚本（在目标实例目录内执行）。
  *
- *   php tools/subaccount-acceptance.php [baseUrl]
+ *   php tools/subaccount-acceptance.php [baseUrl] [--allow-db=<库名>] [--host=<域名>] [--insecure]
  *
  * 覆盖：真实登录、真实 HTTP（form-urlencoded 与 JSON 两种编码）、
  *       EZ-Theme 契约字段、越权与状态码、普通用户无回归、管理端页面与资源可加载、
  *       以及在结束时清理本次创建的全部测试数据。
  *
- * 只在独立测试实例上使用：脚本会创建/删除测试用户，禁止在生产实例执行。
+ * 安全：默认只允许在库名像测试库（含 test/subacct/subtest）的实例执行；
+ *       要在其它实例（例如站点自身库）执行必须显式传 --allow-db=<该库名>。
  */
 
 $base = isset($argv[1]) ? rtrim($argv[1], '/') : 'http://127.0.0.1:8085';
+
+$allowDb = null;
+$hostHeader = null;
+$insecure = false;
+foreach (array_slice($argv, 2) as $arg) {
+    if (strpos($arg, '--allow-db=') === 0) $allowDb = substr($arg, 11);
+    elseif (strpos($arg, '--host=') === 0) $hostHeader = substr($arg, 7);
+    elseif ($arg === '--insecure') $insecure = true;
+}
 
 require __DIR__ . '/../vendor/autoload.php';
 $app = require __DIR__ . '/../bootstrap/app.php';
@@ -22,8 +32,9 @@ use App\Models\SubAccountRelation;
 use App\Models\User;
 
 $db = config('database.connections.mysql.database');
-if (strpos($db, 'test') === false && strpos($db, 'subacct') === false && strpos($db, 'subtest') === false) {
-    fwrite(STDERR, "拒绝执行：当前数据库 {$db} 不像测试库，请显式确认实例。\n");
+$looksLikeTest = strpos($db, 'test') !== false || strpos($db, 'subacct') !== false || strpos($db, 'subtest') !== false;
+if (!$looksLikeTest && ($allowDb === null || $allowDb !== $db)) {
+    fwrite(STDERR, "拒绝执行：当前数据库 {$db} 不像测试库。确认要在该实例执行请显式加 --allow-db={$db}\n");
     exit(2);
 }
 
@@ -58,10 +69,14 @@ function check($name, $cond, $detail = '')
 
 function http($method, $url, $body = null, $headers = [], $json = false)
 {
+    global $hostHeader, $insecure;
     $ch = curl_init($url);
     $h = [];
     foreach ($headers as $k => $v) {
         $h[] = (is_int($k) ? $v : "{$k}: {$v}");
+    }
+    if ($hostHeader !== null) {
+        $h[] = 'Host: ' . $hostHeader;
     }
     if ($body !== null) {
         if ($json) {
@@ -78,6 +93,8 @@ function http($method, $url, $body = null, $headers = [], $json = false)
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => $h,
         CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => !$insecure,
+        CURLOPT_SSL_VERIFYHOST => $insecure ? 0 : 2,
     ]);
     $raw = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
