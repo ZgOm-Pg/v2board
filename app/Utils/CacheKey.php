@@ -45,7 +45,9 @@ class CacheKey
         'TELEGRAM_LOGIN_RESULT' => 'Telegram登录结果缓存', // 用于存储前端轮询的登录结果
         'EMAIL_VERIFY_CODE_CONTEXT' => '邮箱验证码用途上下文', // 用于记录邮箱验证码的生成目的，防止跨场景滥用
         'USER_CHECKIN_STATUS' => '用户签到状态', // 用于记录用户签到状态，防止重复签到
-        'SERVER_STATUS_LAST_REPORT_TIME' => '节点状态最后报告时间' // 用于记录节点状态报告的最后发送时间
+        'SERVER_STATUS_LAST_REPORT_TIME' => '节点状态最后报告时间', // 用于记录节点状态报告的最后发送时间
+        'SUB_ACCOUNT_EMAIL_CODE' => '子账号绑定邮箱验证码',
+        'SUB_ACCOUNT_EMAIL_CODE_LAST_SEND' => '子账号绑定验证码最后发送时间'
     ];
 
     public static function get(string $key, $uniqueValue)

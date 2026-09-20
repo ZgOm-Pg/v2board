@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\MailService;
 use App\Services\PlanService;
+use App\Services\SubAccountService;
 use App\Services\OrderService;
 use Illuminate\Console\Command;
 use App\Models\User;
@@ -49,8 +50,12 @@ class CheckRenewal extends Command
         ini_set('memory_limit', -1);
         $users = User::all();
 
+        // 跳过启用中的子账号: 子账号不参与套餐周期判断，不创建订单、不扣款（需求书第十四节）
+        $subAccountChildIds = (new SubAccountService())->enabledChildIdMap();
+
         //$mailService = new MailService();
         foreach ($users as $user) {
+            if (isset($subAccountChildIds[(int)$user->id])) continue;
             if ($user->auto_renewal && $user->plan_id !== NULL && $user->expired_at !== NULL && $user->expired_at > time() && $user->expired_at - time() < 86400 * 2) {
                 try {
                     $latestOrder = Order::where('user_id', $user->id)

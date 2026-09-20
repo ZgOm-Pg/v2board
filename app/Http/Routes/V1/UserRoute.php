@@ -67,6 +67,48 @@ class UserRoute
             $router->get ('/stat/getTrafficLog', 'V1\User\StatController@getTrafficLog');
             // Delete Account
             $router->post('/deleteAccount', 'V1\User\UserController@deleteAccount');
+
+            // Sub-account 只读列表: 主账号看到自己的子账号；子账号自身调用返回 is_sub_account=1 且列表为空
+            $router->get ('/sub-account/list', 'V1\User\SubAccountController@list');
+
+            // ---------------------------------------------------------------
+            // 以下动作对「启用中的子账号」一律禁止（下单/续费/变更套餐/充值/
+            // 提现/邀请/佣金/佣金提现/创建子账号），由集中式 sub_account 中间件拦截。
+            // 普通用户与管理员行为完全不变。
+            // ---------------------------------------------------------------
+            $router->group([
+                'middleware' => 'sub_account'
+            ], function ($router) {
+                $router->post('/newPeriod', 'V1\User\UserController@newPeriod');
+                $router->post('/redeemgiftcard', 'V1\User\UserController@redeemgiftcard');
+                $router->post('/transfer', 'V1\User\UserController@transfer');
+                // Order
+                $router->post('/order/save', 'V1\User\OrderController@save');
+                $router->post('/order/checkout', 'V1\User\OrderController@checkout');
+                $router->get ('/order/check', 'V1\User\OrderController@check');
+                $router->get ('/order/detail', 'V1\User\OrderController@detail');
+                $router->get ('/order/fetch', 'V1\User\OrderController@fetch');
+                $router->get ('/order/getPaymentMethod', 'V1\User\OrderController@getPaymentMethod');
+                $router->post('/order/cancel', 'V1\User\OrderController@cancel');
+                // Invite & commission
+                $router->get ('/invite/save', 'V1\User\InviteController@save');
+                $router->get ('/invite/fetch', 'V1\User\InviteController@fetch');
+                $router->get ('/invite/details', 'V1\User\InviteController@details');
+                // Withdraw
+                $router->post('/ticket/withdraw', 'V1\User\TicketController@withdraw');
+
+                // -----------------------------------------------------------
+                // 子账号管理（V2Board V1 用户接口契约，主题兼容）
+                // -----------------------------------------------------------
+                $router->post('/sub-account/send-code', 'V1\User\SubAccountController@sendCode');
+                $router->post('/sub-account/bind', 'V1\User\SubAccountController@bind');
+                $router->post('/sub-account/update', 'V1\User\SubAccountController@update');
+                $router->post('/sub-account/change-password', 'V1\User\SubAccountController@changePassword');
+                $router->post('/sub-account/reset-traffic', 'V1\User\SubAccountController@resetTraffic');
+                $router->get ('/sub-account/subscribe', 'V1\User\SubAccountController@subscribe');
+                $router->post('/sub-account/reset-subscribe', 'V1\User\SubAccountController@resetSubscribe');
+                $router->post('/sub-account/unbind', 'V1\User\SubAccountController@unbind');
+            });
         });
     }
 }

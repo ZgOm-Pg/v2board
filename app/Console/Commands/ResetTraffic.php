@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Services\TelegramService;
+use App\Services\SubAccountService;
 use Illuminate\Support\Facades\Redis;
 
 class ResetTraffic extends Command
@@ -120,21 +121,16 @@ class ResetTraffic extends Command
             }
         }
         $this->retryTransaction(function () use ($users) {
-            User::whereIn('id', $users)->update([
-                'u' => 0,
-                'd' => 0
-            ]);
+            $this->resetUsers($users);
         });
     }
 
     private function resetByYearFirstDay($builder): void
     {
         if ((string)date('md') === '0101') {
-            $this->retryTransaction(function () use ($builder) {
-                $builder->update([
-                    'u' => 0,
-                    'd' => 0
-                ]);
+            $ids = $builder->pluck('id')->map(function ($v) { return (int)$v; })->toArray();
+            $this->retryTransaction(function () use ($ids) {
+                $this->resetUsers($ids);
             });
         }
     }
@@ -142,11 +138,9 @@ class ResetTraffic extends Command
     private function resetByMonthFirstDay($builder): void
     {
         if ((string)date('d') === '01') {
-            $this->retryTransaction(function () use ($builder) {
-                $builder->update([
-                    'u' => 0,
-                    'd' => 0
-                ]);
+            $ids = $builder->pluck('id')->map(function ($v) { return (int)$v; })->toArray();
+            $this->retryTransaction(function () use ($ids) {
+                $this->resetUsers($ids);
             });
         }
     }
@@ -167,13 +161,26 @@ class ResetTraffic extends Command
 
         }
         $this->retryTransaction(function () use ($users) {
-            User::whereIn('id', $users)->update([
-                'u' => 0,
-                'd' => 0
-            ]);
+            $this->resetUsers($users);
         });
     }
 
+    /**
+     * 主账号套餐周期重置时，在同一事务内清零主账号与其全部启用子账号的 u/d。
+     * 子账号不独立参与套餐周期判断（需求书第十四节）。
+     */
+    private function resetUsers(array $ids): void
+    {
+        if (empty($ids)) return;
+        $childIds = (new SubAccountService())->enabledChildIdsForParents($ids);
+        if (!empty($childIds)) {
+            $ids = array_values(array_unique(array_merge($ids, $childIds)));
+        }
+        User::whereIn('id', $ids)->update([
+            'u' => 0,
+            'd' => 0
+        ]);
+    }
     private function retryTransaction($callback)
     {
         $attempts = 0;

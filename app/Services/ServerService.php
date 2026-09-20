@@ -16,11 +16,13 @@ use App\Models\ServerAnytls;
 use App\Utils\CacheKey;
 use App\Utils\Helper;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ServerService
 {
-    public function getAvailableVless(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false):array
+    public function getAvailableVless(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false): array
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $servers = [];
         $model = ServerVless::orderBy('sort', 'ASC');
         $server = $model->get();
@@ -28,7 +30,7 @@ class ServerService
             if (!$v['show']) continue;
             $server[$key]['type'] = 'vless';
             // 如果不忽略组限制且用户不在允许的组中，则跳过
-            if (!$ignoreGroupLimit && !in_array($user->group_id, $server[$key]['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $server[$key]['group_id'])) continue;
             if (strpos($server[$key]['port'], '-') !== false) {
                 $server[$key]['port'] = Helper::randomPort($server[$key]['port']);
             }
@@ -66,8 +68,9 @@ class ServerService
         return $servers;
     }
 
-    public function getAvailableVmess(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false):array
+    public function getAvailableVmess(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false): array
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $servers = [];
         $model = ServerVmess::orderBy('sort', 'ASC');
         $vmess = $model->get();
@@ -75,7 +78,7 @@ class ServerService
             if (!$v['show']) continue;
             $vmess[$key]['type'] = 'vmess';
             // 如果不忽略组限制且用户不在允许的组中，则跳过
-            if (!$ignoreGroupLimit && !in_array($user->group_id, $vmess[$key]['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $vmess[$key]['group_id'])) continue;
             if (strpos($vmess[$key]['port'], '-') !== false) {
                 $vmess[$key]['port'] = Helper::randomPort($vmess[$key]['port']);
             }
@@ -100,8 +103,9 @@ class ServerService
         return $servers;
     }
 
-    public function getAvailableTrojan(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false):array
+    public function getAvailableTrojan(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false): array
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $servers = [];
         $model = ServerTrojan::orderBy('sort', 'ASC');
         $trojan = $model->get();
@@ -109,7 +113,7 @@ class ServerService
             if (!$v['show']) continue;
             $trojan[$key]['type'] = 'trojan';
             // 如果不忽略组限制且用户不在允许的组中，则跳过
-            if (!$ignoreGroupLimit && !in_array($user->group_id, $trojan[$key]['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $trojan[$key]['group_id'])) continue;
             if (strpos($trojan[$key]['port'], '-') !== false) {
                 $trojan[$key]['port'] = Helper::randomPort($trojan[$key]['port']);
             }
@@ -132,8 +136,9 @@ class ServerService
         return $servers;
     }
 
-    public function getAvailableTuic(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false)
+    public function getAvailableTuic(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false): array
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $availableServers = [];
         $model = ServerTuic::orderBy('sort', 'ASC');
         $servers = $model->get()->keyBy('id');
@@ -142,7 +147,7 @@ class ServerService
             $servers[$key]['type'] = 'tuic';
             $servers[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_TUIC_LAST_CHECK_AT', $v['id']));
             // 如果不忽略组限制且用户不在允许的组中，则跳过
-            if (!$ignoreGroupLimit && !in_array($user->group_id, $v['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $v['group_id'])) continue;
             if (isset($servers[$v['parent_id']])) {
                 $servers[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_TUIC_LAST_CHECK_AT', $v['parent_id']));
                 $servers[$key]['created_at'] = $servers[$v['parent_id']]['created_at'];
@@ -161,8 +166,9 @@ class ServerService
         return $availableServers;
     }
 
-    public function getAvailableHysteria(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false)
+    public function getAvailableHysteria(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false): array
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $availableServers = [];
         $model = ServerHysteria::orderBy('sort', 'ASC');
         $servers = $model->get()->keyBy('id');
@@ -171,7 +177,7 @@ class ServerService
             $servers[$key]['type'] = 'hysteria';
             $servers[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_HYSTERIA_LAST_CHECK_AT', $v['id']));
             // 如果不忽略组限制且用户不在允许的组中，则跳过
-            if (!$ignoreGroupLimit && !in_array($user->group_id, $v['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $v['group_id'])) continue;
             if (isset($servers[$v['parent_id']])) {
                 $servers[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_HYSTERIA_LAST_CHECK_AT', $v['parent_id']));
                 $servers[$key]['created_at'] = $servers[$v['parent_id']]['created_at'];
@@ -191,8 +197,9 @@ class ServerService
         return $availableServers;
     }
 
-    public function getAvailableShadowsocks(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false)
+    public function getAvailableShadowsocks(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false): array
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $servers = [];
         $model = ServerShadowsocks::orderBy('sort', 'ASC');
         $shadowsocks = $model->get()->keyBy('id');
@@ -201,7 +208,7 @@ class ServerService
             $shadowsocks[$key]['type'] = 'shadowsocks';
             $shadowsocks[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_SHADOWSOCKS_LAST_CHECK_AT', $v['id']));
             // 如果不忽略组限制且用户不在允许的组中，则跳过
-            if (!$ignoreGroupLimit && !in_array($user->group_id, $v['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $v['group_id'])) continue;
             if (strpos($v['port'], '-') !== false) {
                 $shadowsocks[$key]['port'] = Helper::randomPort($v['port']);
             }
@@ -228,8 +235,9 @@ class ServerService
         return $servers;
     }
 
-    public function getAvailableAnyTLS(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false)
+    public function getAvailableAnyTLS(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false): array
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $servers = [];
         $model = ServerAnytls::orderBy('sort', 'ASC');
         $anytls = $model->get()->keyBy('id');
@@ -238,7 +246,7 @@ class ServerService
             $anytls[$key]['type'] = 'anytls';
             $anytls[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_ANYTLS_LAST_CHECK_AT', $v['id']));
             // 如果不忽略组限制且用户不在允许的组中，则跳过
-            if (!$ignoreGroupLimit && !in_array($user->group_id, $v['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $v['group_id'])) continue;
             if (strpos($v['port'], '-') !== false) {
                 $anytls[$key]['port'] = Helper::randomPort($v['port']);
             }
@@ -272,8 +280,9 @@ class ServerService
         }
     }
 
-    public function getAvailableV2node(User $user)
+    public function getAvailableV2node(User $user, $groupId = null, bool $showRealAddress = true, bool $ignoreGroupLimit = false)
     {
+        $groupId = $groupId === null ? $user->group_id : $groupId;
         $servers = [];
         $model = ServerV2node::orderBy('sort', 'ASC');
         $v2node = $model->get()->keyBy('id');
@@ -281,7 +290,7 @@ class ServerService
             if (!$v['show']) continue;
             $v2node[$key]['type'] = 'v2node';
             $v2node[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_V2NODE_LAST_CHECK_AT', $v['id']));
-            if (!in_array($user->group_id, $v['group_id'])) continue;
+            if (!$ignoreGroupLimit && !in_array($groupId, $v['group_id'])) continue;
             if (isset($v2node[$v['parent_id']])) {
                 $v2node[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_V2NODE_LAST_CHECK_AT', $v['parent_id']));
                 $v2node[$key]['created_at'] = $v2node[$v['parent_id']]['created_at'];
@@ -304,17 +313,35 @@ class ServerService
         return $servers;
     }
 
+    /**
+     * 解析用户的有效订阅授权。未启用子账号功能时直接返回普通用户快照，
+     * 保证普通用户行为与改动前完全一致。
+     */
+    private function resolveEntitlement(User $user)
+    {
+        if (!(int)config('v2board.sub_account_enable', 1)) {
+            return SubAccountEntitlement::forNormalUser($user);
+        }
+        $service = new SubAccountService();
+        return $service->resolveEntitlement($user);
+    }
+
     public function getAvailableServers(User $user, bool $showRealAddress = true, bool $ignoreGroupLimit = false)
     {
+        // 只在入口解析一次有效授权，然后把 effective group_id 传给各协议筛选，
+        // 避免在每个协议里重复查询父账号（子账号继承主账号权限组）。
+        $entitlement = $this->resolveEntitlement($user);
+        $groupId = $entitlement->getEffectiveGroupId();
+
         $servers = array_merge(
-            $this->getAvailableShadowsocks($user),
-            $this->getAvailableVmess($user),
-            $this->getAvailableTrojan($user),
-            $this->getAvailableTuic($user),
-            $this->getAvailableHysteria($user),
-            $this->getAvailableVless($user),
-            $this->getAvailableAnyTLS($user),
-            $this->getAvailableV2node($user)
+            $this->getAvailableShadowsocks($user, $groupId, $showRealAddress, $ignoreGroupLimit),
+            $this->getAvailableVmess($user, $groupId, $showRealAddress, $ignoreGroupLimit),
+            $this->getAvailableTrojan($user, $groupId, $showRealAddress, $ignoreGroupLimit),
+            $this->getAvailableTuic($user, $groupId, $showRealAddress, $ignoreGroupLimit),
+            $this->getAvailableHysteria($user, $groupId, $showRealAddress, $ignoreGroupLimit),
+            $this->getAvailableVless($user, $groupId, $showRealAddress, $ignoreGroupLimit),
+            $this->getAvailableAnyTLS($user, $groupId, $showRealAddress, $ignoreGroupLimit),
+            $this->getAvailableV2node($user, $groupId, $showRealAddress, $ignoreGroupLimit)
         );
         $tmp = array_column($servers, 'sort');
         array_multisort($tmp, SORT_ASC, $servers);
@@ -363,22 +390,74 @@ class ServerService
         }, $servers);
     }
 
+    /**
+     * 节点拉取可用用户列表。
+     *
+     * 拆成两段（需求书第十三节）:
+     *   1. 普通用户查询：保持原有条件，并排除启用中的子账号，避免同一账号出现两次；
+     *   2. 启用子账号 JOIN 关系表 + 主账号查询：节点记录使用
+     *      子账号 id / 子账号 uuid / 主账号 group_id、expired_at、speed_limit、device_limit，
+     *      并同时校验父子封禁、个人额度、共享额度与关系状态。
+     */
     public function getAvailableUsers($groupId)
     {
-        return User::whereIn('group_id', $groupId)
+        $groupIds = is_array($groupId) ? $groupId : [$groupId];
+        $now = time();
+
+        // 普通用户分支保持改造前的原始条件（含上游 orWhere(col, NULL) 的既有语义），
+        // 确保普通用户的节点名单与升级前逐行一致（验收项 26 无回归）。
+        $query = User::whereIn('group_id', $groupIds)
             ->whereRaw('u + d < transfer_enable')
             ->where(function ($query) {
                 $query->where('expired_at', '>=', time())
                     ->orWhere('expired_at', NULL);
             })
-            ->where('banned', 0)
+            ->where('banned', 0);
+
+        if ((int)config('v2board.sub_account_enable', 1)) {
+            $query->whereNotIn('id', function ($sub) {
+                $sub->select('child_user_id')
+                    ->from('v2_user_sub_accounts')
+                    ->where('status', 1);
+            });
+        }
+
+        $normalUsers = $query->select([
+            'id',
+            'uuid',
+            'speed_limit',
+            'device_limit'
+        ])->get();
+
+        if (!(int)config('v2board.sub_account_enable', 1)) {
+            return $normalUsers;
+        }
+
+        $subRows = DB::table('v2_user_sub_accounts as r')
+            ->join('v2_user as c', 'c.id', '=', 'r.child_user_id')
+            ->join('v2_user as p', 'p.id', '=', 'r.parent_user_id')
+            ->where('r.status', 1)
+            ->whereIn('p.group_id', $groupIds)
+            ->where('c.banned', 0)
+            ->where('p.banned', 0)
+            ->whereNotNull('p.plan_id')
+            // 与普通用户分支保持一致的有效期语义（更早到期不算有效）。
+            ->where('p.expired_at', '>=', $now)
+            ->whereRaw('(r.traffic_limit = 0 OR c.u + c.d < r.traffic_limit)')
+            ->whereRaw('p.u + p.d < p.transfer_enable')
             ->select([
-                'id',
-                'uuid',
-                'speed_limit',
-                'device_limit'
+                'c.id as id',
+                'c.uuid as uuid',
+                'p.speed_limit as speed_limit',
+                'p.device_limit as device_limit'
             ])
             ->get();
+
+        if ($subRows->isEmpty()) {
+            return $normalUsers;
+        }
+
+        return $normalUsers->concat(User::hydrate($subRows->all()));
     }
 
     public function log(int $userId, int $serverId, int $u, int $d, float $rate, string $method)

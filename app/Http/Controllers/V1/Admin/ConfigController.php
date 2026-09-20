@@ -186,6 +186,12 @@ class ConfigController extends Controller
                 'password_limit_enable' => (int) config('v2board.password_limit_enable', 1),
                 'password_limit_count' => config('v2board.password_limit_count', 5),
                 'password_limit_expire' => config('v2board.password_limit_expire', 60)
+            ],
+            'sub_account' => [
+                'sub_account_enable' => (int)config('v2board.sub_account_enable', 1),
+                'sub_account_max_count' => (int)config('v2board.sub_account_max_count', 1),
+                'sub_account_email_code_ttl' => (int)config('v2board.sub_account_email_code_ttl', 300),
+                'sub_account_email_code_interval' => (int)config('v2board.sub_account_email_code_interval', 60)
             ]
         ];
         if ($key && isset($data[$key])) {
