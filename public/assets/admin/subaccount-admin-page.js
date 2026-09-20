@@ -301,6 +301,18 @@
         return null;
     }
 
+    /** 向上寻找 antd 子菜单容器（li.ant-menu-submenu） */
+    function closestSubmenu(node) {
+        var current = node;
+        while (current && current.tagName !== 'BODY') {
+            if (current.tagName === 'LI' && String(current.className || '').indexOf('ant-menu-submenu') !== -1) {
+                return current;
+            }
+            current = current.parentNode;
+        }
+        return null;
+    }
+
     /**
      * 找不到原生菜单项时的兜底：自己找一个「像菜单」的容器。
      */
@@ -442,6 +454,18 @@
             return false;
         }
         if (!userLink.parentNode) return false;
+
+        // 若匹配到的「用户管理」位于某个子菜单（antd SubMenu）内部，则把我们的
+        // 入口提升为顶层菜单项，插到该子菜单之后 —— 否则用户必须展开子菜单才能看到。
+        var submenuLi = closestSubmenu(userLink);
+        if (submenuLi && submenuLi.parentNode) {
+            var topNode = buildMenuNode();
+            submenuLi.parentNode.insertBefore(topNode, submenuLi.nextSibling);
+            bindMenuClick(topNode);
+            diagnostics.mode = 'top-level';
+            log('「用户管理」位于子菜单内，已把「' + MENU_TEXT + '」插入到该子菜单之后的顶层');
+            return true;
+        }
 
         var resolved = resolveMenuHost(userLink);
         var nativeItem = resolved.item;
