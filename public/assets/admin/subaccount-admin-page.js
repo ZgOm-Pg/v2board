@@ -295,12 +295,19 @@
     }
 
     /**
-     * 把管理界面挂载到原生路由容器内（幂等：同一容器只挂载一次）。
+     * 把管理界面挂载到原生路由容器内（幂等）。
+     * - 首次进入：容器存在但未挂载 -> 构建页面；
+     * - 路由切换后 SPA 可能重建容器（新元素）或清空容器内容
+     *   （同一元素、子节点被移除）-> 两种情况都会重新构建。
      */
     function mountPage() {
         var container = document.getElementById(MOUNT_ID);
         if (!container) return false;
-        if (container.getAttribute('data-sa-mounted') === '1') return true;
+        if (container.getAttribute('data-sa-mounted') === '1') {
+            if (container.querySelector('.sa-page')) return true;
+            // 内容被 SPA 清空：标记失效，重新渲染
+            while (container.firstChild) container.removeChild(container.firstChild);
+        }
         container.setAttribute('data-sa-mounted', '1');
         container.appendChild(buildPage());
         state.root = container;
@@ -310,14 +317,14 @@
 
     /**
      * 仅用于检测原生路由容器是否出现（不触碰侧边栏菜单）。
-     * umi 路由切换时容器会被重建，此处会重新挂载；全部为事件驱动，无轮询。
+     * observer 常驻：umi 前进/后退会重建或清空容器，需要重新挂载。
      */
     function watchMount() {
-        if (mountPage()) return;
+        mountPage();
         if (window.MutationObserver) {
             try {
                 var observer = new MutationObserver(function () {
-                    if (mountPage()) observer.disconnect();
+                    mountPage();
                 });
                 observer.observe(document.body, { childList: true, subtree: true });
             } catch (e) {
