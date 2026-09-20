@@ -119,7 +119,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $email,
-            'code' => $this->seedBindCode($email),
+            'code' => $this->seedBindCode($parent, $email),
             'traffic_limit' => 524288000,
             'remark' => 'my sub',
             'password' => 'subaccountpass1',
@@ -191,7 +191,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $email,
-            'code' => $this->seedBindCode($email),
+            'code' => $this->seedBindCode($parent, $email),
         ]);
         $http->assertStatus(200);
 
@@ -230,7 +230,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $blank->email,
-            'code' => $this->seedBindCode($blank->email),
+            'code' => $this->seedBindCode($parent, $blank->email),
         ]);
         $http->assertStatus(200);
         $this->assertArrayNotHasKey('initial_password', $http->json('data'));
@@ -265,7 +265,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $candidate->email,
-            'code' => $this->seedBindCode($candidate->email),
+            'code' => $this->seedBindCode($parent, $candidate->email),
         ]);
 
         $http->assertStatus(500);
@@ -322,7 +322,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $candidate->email,
-            'code' => $this->seedBindCode($candidate->email),
+            'code' => $this->seedBindCode($parent, $candidate->email),
         ]);
         $http->assertStatus(500);
         $this->assertSame('Users with orders cannot be bound as sub-accounts', $http->json('message'));
@@ -338,7 +338,7 @@ class SubAccountApiTest extends SubAccountTestCase
         try {
             $this->service()->bind($parent, [
                 'email' => $parent->email,
-                'code' => $this->seedBindCode($parent->email),
+                'code' => $this->seedBindCode($parent, $parent->email),
             ], '127.0.0.1');
             $this->fail('绑定自己必须被拒绝');
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
@@ -361,7 +361,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $again = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parentA),
             'email' => $child->email,
-            'code' => $this->seedBindCode($child->email),
+            'code' => $this->seedBindCode($parentA, $child->email),
         ]);
         $again->assertStatus(500);
         $this->assertSame('This account is already a sub-account', $again->json('message'));
@@ -370,7 +370,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $cross = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parentB),
             'email' => $child->email,
-            'code' => $this->seedBindCode($child->email),
+            'code' => $this->seedBindCode($parentB, $child->email),
         ]);
         $cross->assertStatus(500);
         $this->assertSame('This account is already a sub-account', $cross->json('message'));
@@ -390,7 +390,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $middle->email,
-            'code' => $this->seedBindCode($middle->email),
+            'code' => $this->seedBindCode($parent, $middle->email),
         ]);
         $http->assertStatus(500);
         $this->assertSame('This account already has sub-accounts', $http->json('message'));
@@ -407,7 +407,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $newEmail,
-            'code' => $this->seedBindCode($newEmail),
+            'code' => $this->seedBindCode($parent, $newEmail),
         ]);
         // 子账号调用写接口由集中式 SubAccountGuard 中间件直接拦截
         // （UserRoute 把 send-code/bind/update/... 全部挂在 sub_account 中间件组，
@@ -428,7 +428,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $secondEmail,
-            'code' => $this->seedBindCode($secondEmail),
+            'code' => $this->seedBindCode($parent, $secondEmail),
         ]);
         $http->assertStatus(500);
         $this->assertSame('The number of sub-accounts has reached the upper limit', $http->json('message'));
@@ -447,7 +447,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $newEmail,
-            'code' => $this->seedBindCode($newEmail),
+            'code' => $this->seedBindCode($parent, $newEmail),
         ]);
         $http->assertStatus(200);
     }
@@ -470,7 +470,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $short = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $email,
-            'code' => $this->seedBindCode($email),
+            'code' => $this->seedBindCode($parent, $email),
             'password' => '1234567',
         ]);
         $short->assertStatus(500);
@@ -487,7 +487,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $email,
-            'code' => $this->seedBindCode($email),
+            'code' => $this->seedBindCode($parent, $email),
             'traffic_limit' => -1,
         ]);
         $http->assertStatus(500);
@@ -501,7 +501,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $this->enableSubAccount();
         $parent = $this->makeParent();
         $email = 'wrong-code@example.com';
-        $this->seedBindCode($email, '123456');
+        $this->seedBindCode($parent, $email, '123456');
 
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
@@ -513,7 +513,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $this->assertSame(0, User::where('email', $email)->count());
 
         // 错误尝试不消费验证码
-        $this->assertSame('123456', Cache::get($this->emailCodeCacheKey($email)));
+        $this->assertSame('123456', Cache::get($this->emailCodeCacheKey($parent, $email)));
     }
 
     public function testExpiredVerificationCodeIsRejected()
@@ -521,9 +521,9 @@ class SubAccountApiTest extends SubAccountTestCase
         $this->enableSubAccount();
         $parent = $this->makeParent();
         $email = 'expired-code@example.com';
-        $this->seedBindCode($email, '123456');
+        $this->seedBindCode($parent, $email, '123456');
         // 模拟 TTL 到期（array 驱动不主动过期，直接移除等价于自然过期）
-        Cache::forget($this->emailCodeCacheKey($email));
+        Cache::forget($this->emailCodeCacheKey($parent, $email));
 
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
@@ -543,14 +543,14 @@ class SubAccountApiTest extends SubAccountTestCase
 
         $this->service()->sendBindCode($parent, $email, '127.0.0.1');
 
-        $code = Cache::get($this->emailCodeCacheKey($email));
+        $code = Cache::get($this->emailCodeCacheKey($parent, $email));
         $this->assertNotNull($code);
         $this->assertMatchesRegularExpression('/^\d{6}$/', (string)$code);
 
         // array 驱动的 Cache::put 会写入过期时间；这里断言键存在且值格式正确，
         // 并通过配置读取验证 TTL 语义来自 sub_account_email_code_ttl
         $this->assertSame(120, $this->service()->getEmailCodeTtl());
-        $this->assertTrue(Cache::has($this->emailCodeLastSendCacheKey($email)));
+        $this->assertTrue(Cache::has($this->emailCodeLastSendCacheKey($parent, $email)));
     }
 
     public function testVerificationCodeIsSingleUse()
@@ -558,7 +558,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $this->enableSubAccount();
         $parent = $this->makeParent();
         $email = 'single-use@example.com';
-        $this->seedBindCode($email, '123456');
+        $this->seedBindCode($parent, $email, '123456');
 
         $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
@@ -567,8 +567,8 @@ class SubAccountApiTest extends SubAccountTestCase
         ])->assertStatus(200);
 
         // 验证码与"最后发送时间"都被消费
-        $this->assertFalse(Cache::has($this->emailCodeCacheKey($email)));
-        $this->assertFalse(Cache::has($this->emailCodeLastSendCacheKey($email)));
+        $this->assertFalse(Cache::has($this->emailCodeCacheKey($parent, $email)));
+        $this->assertFalse(Cache::has($this->emailCodeLastSendCacheKey($parent, $email)));
 
         // 第二次使用同一验证码必须失败
         $second = $this->postJson('/api/v1/user/sub-account/bind', [
@@ -587,7 +587,7 @@ class SubAccountApiTest extends SubAccountTestCase
         $parent = $this->makeParent();
         $email = 'interval@example.com';
         Queue::fake();
-        $this->seedLastSend($email);
+        $this->seedLastSend($parent, $email);
 
         $http = $this->postJson('/api/v1/user/sub-account/send-code', [
             'auth_data' => $this->authDataFor($parent),
@@ -617,7 +617,7 @@ class SubAccountApiTest extends SubAccountTestCase
             return strpos($serialized, $email) !== false;
         });
 
-        $code = Cache::get($this->emailCodeCacheKey($email));
+        $code = Cache::get($this->emailCodeCacheKey($parent, $email));
         $this->assertNotNull($code);
         $this->assertMatchesRegularExpression('/^\d{6}$/', (string)$code);
     }
@@ -651,7 +651,7 @@ class SubAccountApiTest extends SubAccountTestCase
         ]);
         $http->assertStatus(429);
         $this->assertSame('Too many requests, please try again later.', $http->json('message'));
-        $this->assertFalse(Cache::has($this->emailCodeCacheKey('ratelimited@example.com')));
+        $this->assertFalse(Cache::has($this->emailCodeCacheKey($parent, 'ratelimited@example.com')));
 
         // 清理: 其它测试使用 array 缓存共享限流键
         RateLimiter::clear('sub_account_code_user_' . $parent->id);

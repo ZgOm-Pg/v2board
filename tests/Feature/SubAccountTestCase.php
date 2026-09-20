@@ -225,7 +225,7 @@ abstract class SubAccountTestCase extends TestCase
      */
     protected function bindSubAccount(User $parent, $email, array $input = []): SubAccountRelation
     {
-        $this->seedBindCode($email);
+        $this->seedBindCode($parent, $email);
         $result = $this->service()->bind($parent, array_merge($input, [
             'email' => $email,
             'code' => '123456',
@@ -255,43 +255,51 @@ abstract class SubAccountTestCase extends TestCase
 
     // ------------------------------------------------------------- 验证码
 
-    /**
-     * 复刻 SubAccountService::emailCacheKey 的推导方式。
-     */
-    protected function emailCodeCacheKey($email): string
+    /** 允许传 User 或 user id */
+    private function parentIdOf($parent): int
     {
-        $hash = hash('sha256', strtolower(trim($email)) . '|' . config('app.key'));
+        if ($parent instanceof User) return (int)$parent->id;
+        return (int)$parent;
+    }
+
+    /**
+     * 直接调用 SubAccountService::emailCacheKey，避免测试与实现漂移。
+     * 键的作用域是 parent_user_id + 规范化邮箱 + APP_KEY。
+     */
+    protected function emailCodeCacheKey($parent, $email): string
+    {
+        $hash = $this->service()->emailCacheKey($this->parentIdOf($parent), $email);
         return CacheKey::get('SUB_ACCOUNT_EMAIL_CODE', $hash);
     }
 
-    protected function emailCodeLastSendCacheKey($email): string
+    protected function emailCodeLastSendCacheKey($parent, $email): string
     {
-        $hash = hash('sha256', strtolower(trim($email)) . '|' . config('app.key'));
+        $hash = $this->service()->emailCacheKey($this->parentIdOf($parent), $email);
         return CacheKey::get('SUB_ACCOUNT_EMAIL_CODE_LAST_SEND', $hash);
     }
 
     /**
      * 直接写入验证码（等价于 sendBindCode 的缓存副作用，但不发邮件、不占用限流）。
      */
-    protected function seedBindCode($email, string $code = '123456', int $ttl = 300): string
+    protected function seedBindCode($parent, $email, string $code = '123456', int $ttl = 300): string
     {
-        Cache::put($this->emailCodeCacheKey($email), $code, $ttl);
-        Cache::put($this->emailCodeLastSendCacheKey($email), time(), max(1, $ttl));
+        Cache::put($this->emailCodeCacheKey($parent, $email), $code, $ttl);
+        Cache::put($this->emailCodeLastSendCacheKey($parent, $email), time(), max(1, $ttl));
         return $code;
     }
 
     /**
      * 让 sendBindCode 认为"刚刚发送过"，用于验证发送间隔限制。
      */
-    protected function seedLastSend($email): void
+    protected function seedLastSend($parent, $email): void
     {
-        Cache::put($this->emailCodeLastSendCacheKey($email), time(), 600);
+        Cache::put($this->emailCodeLastSendCacheKey($parent, $email), time(), 600);
     }
 
-    protected function forgetBindCode($email): void
+    protected function forgetBindCode($parent, $email): void
     {
-        Cache::forget($this->emailCodeCacheKey($email));
-        Cache::forget($this->emailCodeLastSendCacheKey($email));
+        Cache::forget($this->emailCodeCacheKey($parent, $email));
+        Cache::forget($this->emailCodeLastSendCacheKey($parent, $email));
     }
 
     protected function codeRateLimitKeysFor($userId, $ip = '127.0.0.1'): array
