@@ -334,11 +334,46 @@ class SubAccountService
     // ------------------------------------------------------------ 邮箱验证码
 
     /**
-     * 缓存键不含明文邮箱: sha256(email + app.key)。
+     * 验证码缓存键：parent_user_id + 规范化邮箱 + APP_KEY。
+     *
+     * 作用域必须包含主账号：否则主账号 A 发出的验证码可以被主账号 B 用来绑定同一邮箱。
+     * 键中不含明文邮箱（sha256）。
      */
-    private function emailCacheKey($email)
+    public function emailCacheKey($parentUserId, $email)
     {
-        return hash('sha256', strtolower(trim($email)) . '|' . config('app.key'));
+        return hash('sha256', (int)$parentUserId . '|' . strtolower(trim($email)) . '|' . config('app.key'));
+    }
+
+    /**
+     * 主账号绑定资格（统一入口）。
+     *
+     * sendBindCode 与 bind 都必须调用；bind 在事务内锁定主账号后必须再次调用，
+     * 避免"发出验证码之后主账号状态发生变化"（封禁/过期/套餐被清空/额度归零）。
+     *
+     * 注意：这里**不要求**主账号还有剩余流量 —— 流量耗尽只影响子账号能否连接节点
+     * （见 SubAccountEntitlement::canConnect() 与 ServerService::getAvailableUsers()）。
+     */
+    public function assertEligibleParent(User $parent)
+    {
+        if (!$this->isEnabled()) {
+            abort(500, __('Sub-account is not enabled'));
+        }
+        if ($this->isSubAccount($parent)) {
+            abort(403, __('Sub-account is not allowed to create sub-accounts'));
+        }
+        if ((int)$parent->banned === 1) {
+            abort(500, __('The account has been banned'));
+        }
+        if ($parent->plan_id === null) {
+            abort(500, __('The parent account has no active plan'));
+        }
+        if ($parent->expired_at !== null && (int)$parent->expired_at <= time()) {
+            abort(500, __('The parent account plan has expired'));
+        }
+        if ((int)$parent->transfer_enable <= 0) {
+            abort(500, __('The parent account has no traffic quota'));
+        }
+        return true;
     }
 
     /**
@@ -346,8 +381,7 @@ class SubAccountService
      */
     public function sendBindCode(User $parent, $email, $ip)
     {
-        if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
-        if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to create sub-accounts'));
+        $this->assertEligibleParent($parent);
 
         $email = strtolower(trim((string)$email));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) abort(500, __('Email format is incorrect'));
@@ -364,7 +398,7 @@ class SubAccountService
         RateLimiter::hit($userKey, 3600);
         RateLimiter::hit($ipKey, 3600);
 
-        $hash = $this->emailCacheKey($email);
+        $hash = $this->emailCacheKey($parent->id, $email);
         if (Cache::get(CacheKey::get('SUB_ACCOUNT_EMAIL_CODE_LAST_SEND', $hash))) {
             abort(500, __('Email verification code has been sent, please request again later'));
         }
@@ -401,11 +435,11 @@ class SubAccountService
     }
 
     /**
-     * 原子校验并消费验证码。
+     * 原子校验并消费验证码（作用域：主账号 + 邮箱）。
      */
-    public function consumeEmailCode($email, $code)
+    public function consumeEmailCode($parentUserId, $email, $code)
     {
-        $hash = $this->emailCacheKey($email);
+        $hash = $this->emailCacheKey($parentUserId, $email);
         $cacheKey = CacheKey::get('SUB_ACCOUNT_EMAIL_CODE', $hash);
         $cached = Cache::get($cacheKey);
         if (!$cached) abort(500, __('The verification code has expired, please resend'));
@@ -427,8 +461,8 @@ class SubAccountService
      */
     public function bind(User $parent, array $input, $ip)
     {
-        if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
-        if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to create sub-accounts'));
+        // 绑定资格：与 sendBindCode 使用同一入口，避免两处判断漂移
+        $this->assertEligibleParent($parent);
 
         $email = strtolower(trim((string)(isset($input['email']) ? $input['email'] : '')));
         // EZ-Theme 发送 email_code（字符串，可能带前导零）；兼容旧的 code 字段名。
@@ -452,14 +486,19 @@ class SubAccountService
             abort(500, __('Password must be at least 8 characters'));
         }
 
-        // 一次性验证码: 在事务外先扣掉，避免事务回滚后验证码可被重复使用
-        $this->consumeEmailCode($email, $code);
+        // 一次性验证码（作用域: 主账号 + 邮箱）:
+        // 在事务外先扣掉，避免事务回滚后验证码可被重复使用
+        $this->consumeEmailCode($parent->id, $email, $code);
 
         DB::beginTransaction();
         try {
             // 行锁: 锁住主账号，串行化同一主账号的并发绑定
             $lockedParent = User::lockForUpdate()->find($parent->id);
             if (!$lockedParent) throw new \Exception(__('The user does not exist'));
+
+            // 验证码发出之后主账号状态可能已经变化（封禁/过期/套餐清空/额度归零），
+            // 因此必须在事务内、拿到行锁之后重新校验一次绑定资格。
+            $this->assertEligibleParent($lockedParent);
 
             $existsCount = SubAccountRelation::where('parent_user_id', $lockedParent->id)
                 ->where('status', SubAccountRelation::STATUS_ENABLED)
@@ -506,8 +545,12 @@ class SubAccountService
             if (!$relation->save()) throw new \Exception(__('Save failed'));
 
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            // 资格校验等业务异常直接透传（保留 403/500 语义与原始文案）
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                throw $e;
+            }
             abort(500, $e->getMessage());
         }
 
@@ -727,6 +770,7 @@ class SubAccountService
 
     /**
      * 关系定位：优先用关系 id，其次用 child_user_id（EZ-Theme 两者都会发送）。
+     * 用户端专用，只认启用中的关系。
      */
     public function requireOwnedRelationOrChild(User $parent, array $input)
     {
@@ -948,6 +992,7 @@ class SubAccountService
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
         if (!$idOrChildId) abort(500, __('The sub-account relation does not exist'));
+
 
         $relation = SubAccountRelation::where('id', $idOrChildId)
             ->where('parent_user_id', $parent->id)
