@@ -171,11 +171,19 @@ class SubAccountTrafficTest extends SubAccountTestCase
         $this->assertSame($ids($beforeGroup1), $ids($afterGroup1), '无子账号时启用功能不得改变普通用户集合');
         $this->assertSame($uuids($beforeGroup1), $uuids($afterGroup1));
 
+        // 注意：本用例在「已有真实用户」的库上运行时，组 1 里本来就可能有其它可用用户，
+        // 因此这里断言「本用例创建的用户必须在结果中」，而不是断言整个集合恰好等于两者。
         $expectedGroup1 = [$normalA1->id, $normalA2->id];
         sort($expectedGroup1);
-        $this->assertSame($expectedGroup1, $ids($afterGroup1));
+        $actualGroup1 = $ids($afterGroup1);
+        foreach ($expectedGroup1 as $expectedId) {
+            $this->assertContains((int)$expectedId, $actualGroup1, '组 1 的可用普通用户应包含本用例用户 #' . $expectedId);
+        }
 
-        $this->assertSame([(int)$normalB->id], $ids($afterGroup2));
+        $actualGroup2 = $ids($afterGroup2);
+        $this->assertContains((int)$normalB->id, $actualGroup2, '组 2 应包含本用例用户');
+        $this->assertNotContains((int)$normalA1->id, $actualGroup2, '组 2 不得包含组 1 的用户');
+        $this->assertNotContains((int)$normalA2->id, $actualGroup2, '组 2 不得包含组 1 的用户');
 
         // 被排除的普通用户
         foreach ([$exhausted->id, $expired->id, $banned->id] as $excludedId) {
