@@ -326,8 +326,13 @@ class ServerService
             ->where('c.banned', 0)
             ->where('p.banned', 0)
             ->whereNotNull('p.plan_id')
-            // 与普通用户分支保持一致的有效期语义（更早到期不算有效）。
-            ->where('p.expired_at', '>=', $now)
+            // 与 UserService::isAvailable() / SubAccountEntitlement 语义一致：
+            // 主账号 expired_at 为 NULL 表示「长期有效」，其子账号同样应出现在节点用户名单；
+            // 已过期或流量耗尽的主账号，其子账号不会出现。
+            ->where(function ($q) use ($now) {
+                $q->whereNull('p.expired_at')
+                    ->orWhere('p.expired_at', '>=', $now);
+            })
             ->whereRaw('(r.traffic_limit = 0 OR c.u + c.d < r.traffic_limit)')
             ->whereRaw('p.u + p.d < p.transfer_enable')
             ->select([
