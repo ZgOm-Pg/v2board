@@ -747,24 +747,48 @@ class SubAccountService
     // ------------------------------------------------------- 归属校验(防越权)
 
     /**
-     * 取指定主账号名下的关系，找不到直接 403/500，防止水平越权。
+     * 用户端使用：要求关系属于当前主账号、**处于启用状态**、且父子用户都仍然存在。
+     *
+     * 已解绑（归档）的关系对原主账号不再可操作：不得读取订阅、改密、
+     * 重置 Token、重置流量或修改关系（管理与审计仍可在后台查看）。
      */
-    public function requireOwnedRelation(User $parent, $relationId)
+    public function requireActiveOwnedRelation(User $parent, $relationId)
     {
         $relation = SubAccountRelation::find($relationId);
         if (!$relation) abort(500, __('The sub-account relation does not exist'));
         if ((int)$relation->parent_user_id !== (int)$parent->id) {
             abort(403, __('You do not have permission to operate this sub-account'));
         }
+        if ((int)$relation->status !== SubAccountRelation::STATUS_ENABLED) {
+            abort(500, __('The sub-account has been unbound'));
+        }
+        if (!User::where('id', $relation->child_user_id)->exists()) {
+            abort(500, __('The user does not exist'));
+        }
         return $relation;
     }
 
-    public function requireOwnedRelationByChildId(User $parent, $childUserId)
+    /**
+     * 用户端使用：按子账号 id 定位启用中的关系（含归属校验）。
+     */
+    public function requireActiveOwnedRelationByChildId(User $parent, $childUserId)
     {
         $relation = SubAccountRelation::where('parent_user_id', $parent->id)
             ->where('child_user_id', $childUserId)
+            ->where('status', SubAccountRelation::STATUS_ENABLED)
             ->first();
         if (!$relation) abort(403, __('You do not have permission to operate this sub-account'));
+        return $relation;
+    }
+
+    /**
+     * 管理端使用：仅校验关系是否存在，**包含已归档（status=0）的关系**。
+     * 管理端需要能查看/处理历史关系，因此不做"必须启用"的限制。
+     */
+    public function requireOwnedRelationIncludingArchived($relationId)
+    {
+        $relation = SubAccountRelation::find($relationId);
+        if (!$relation) abort(500, __('The sub-account relation does not exist'));
         return $relation;
     }
 
@@ -779,17 +803,15 @@ class SubAccountService
 
         if ($relationId !== null) {
             $relation = SubAccountRelation::find($relationId);
-            if ($relation && (int)$relation->parent_user_id === (int)$parent->id) {
+            if ($relation && (int)$relation->parent_user_id === (int)$parent->id
+                && (int)$relation->status === SubAccountRelation::STATUS_ENABLED) {
                 return $relation;
             }
         }
         if ($childUserId !== null) {
-            return $this->requireOwnedRelationByChildId($parent, $childUserId);
+            return $this->requireActiveOwnedRelationByChildId($parent, $childUserId);
         }
-        if ($relationId === null) {
-            abort(500, __('The sub-account relation does not exist'));
-        }
-        return $this->requireOwnedRelation($parent, $relationId);
+        return $this->requireActiveOwnedRelation($parent, $relationId);
     }
 
     // ------------------------------------------------------------ 修改/解绑
@@ -798,7 +820,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -914,7 +936,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -950,7 +972,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -993,12 +1015,21 @@ class SubAccountService
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
         if (!$idOrChildId) abort(500, __('The sub-account relation does not exist'));
 
-
-        $relation = SubAccountRelation::where('id', $idOrChildId)
+        // 已归档关系（同属当前主账号）明确报“已解绑”，而不是退化成权限错误
+        $ownedAny = SubAccountRelation::where('id', $idOrChildId)
             ->where('parent_user_id', $parent->id)
             ->first();
+        if ($ownedAny && (int)$ownedAny->status !== SubAccountRelation::STATUS_ENABLED) {
+            abort(500, __('The sub-account has been unbound'));
+        }
+
+        // 只有启用中的关系可读取订阅；归档关系即使属于当前主账号也拒绝
+        $relation = SubAccountRelation::where('id', $idOrChildId)
+            ->where('parent_user_id', $parent->id)
+            ->where('status', SubAccountRelation::STATUS_ENABLED)
+            ->first();
         if (!$relation) {
-            $relation = $this->requireOwnedRelationByChildId($parent, $idOrChildId);
+            $relation = $this->requireActiveOwnedRelationByChildId($parent, $idOrChildId);
         }
         $child = User::find($relation->child_user_id);
         if (!$child) abort(500, __('The user does not exist'));
@@ -1015,7 +1046,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -1122,8 +1153,7 @@ class SubAccountService
      */
     public function adminDetail($relationId)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         $parent = User::find($relation->parent_user_id);
         $child = User::find($relation->child_user_id);
@@ -1256,8 +1286,7 @@ class SubAccountService
 
     public function adminUpdate($relationId, array $input, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {
@@ -1313,8 +1342,7 @@ class SubAccountService
 
     public function adminResetSubscribe($relationId, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {
@@ -1343,8 +1371,7 @@ class SubAccountService
 
     public function adminResetTraffic($relationId, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {
@@ -1373,8 +1400,7 @@ class SubAccountService
     }
     public function adminUnbind($relationId, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {
