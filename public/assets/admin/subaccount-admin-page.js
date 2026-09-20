@@ -25,6 +25,9 @@
     var PAGE_SIZE = 20;
     var MAX_PAGE_SIZE = 100;
 
+    /** 菜单注入诊断（浏览器控制台执行 window.__saMenuDebug() 查看） */
+    var diagnostics = { ok: false, mode: null, attempts: 0 };
+
     var RELATION_STATUS = { 1: '启用', 0: '停用' };
     var CREATE_TYPE = { 1: '父账号新建', 0: '绑定已有账号' };
 
@@ -245,10 +248,7 @@
     }
 
     /**
-     * 定位原生「用户管理」菜单项。
-     * 注意：注入项的 href 是 "#/sub-accounts"（包含 "#/user"? 不包含，但
-     * "#/sub-accounts" 会被 '#/user' 之外的规则干扰），因此这里同时用
-     * href 片段与 data 标记双重排除，避免把自己当成原生项。
+     * 注入项自身的识别（data 标记 + href 双重排除），避免把自己当成原生项。
      */
     function isInjectedItem(node) {
         return node.getAttribute(MENU_FLAG) === '1' ||
@@ -256,6 +256,14 @@
             String(node.getAttribute('href') || '').indexOf('#/sub-accounts') !== -1;
     }
 
+    /**
+     * 定位原生「用户管理」菜单项。
+     *
+     * 不同后台构建版本的菜单结构并不一致，因此这里按优先级多策略查找：
+     *   1) <a href> 含 "#/user"；
+     *   2) 任意元素的可见文案为「用户管理」（覆盖 <li><span> 无 <a> 的结构）；
+     * 并排除我们自己注入的节点。
+     */
     function findUserMenuItem() {
         var links = document.querySelectorAll('a[href]');
         var i;
@@ -263,13 +271,112 @@
             if (isInjectedItem(links[i])) continue;
             if (isUserMenuHref(links[i].getAttribute('href'))) return links[i];
         }
-        // fallback: 仅当找不到 href 匹配时，才用中文链接文案匹配
+        // 兜底 1：<a> 文案匹配
         for (i = 0; i < links.length; i++) {
             if (isInjectedItem(links[i])) continue;
             var content = (links[i].textContent || '').replace(/\s+/g, '');
             if (content === '用户管理' || content.indexOf('用户管理') === 0) return links[i];
         }
+        // 兜底 2：非 <a> 结构（antd Menu 的 onClick 导航模式）
+        var candidates = document.querySelectorAll('li, .ant-menu-item, span, div');
+        for (i = 0; i < candidates.length; i++) {
+            var node = candidates[i];
+            if (node.getAttribute(MENU_FLAG) === '1') continue;
+            if (node.children && node.children.length > 0) continue; // 只看叶子节点，避免匹配到大容器
+            var text = (node.textContent || '').replace(/\s+/g, '');
+            if (text === '用户管理') {
+                var li = closestLi(node);
+                return li || node;
+            }
+        }
         return null;
+    }
+
+    function closestLi(node) {
+        var current = node;
+        while (current) {
+            if (current.tagName === 'LI') return current;
+            current = current.parentNode;
+        }
+        return null;
+    }
+
+    /**
+     * 找不到原生菜单项时的兜底：自己找一个「像菜单」的容器。
+     */
+    function findMenuContainer() {
+        var selectors = [
+            'ul.ant-menu',
+            '.ant-menu-root',
+            '.ant-menu ul',
+            '.ant-layout-sider ul',
+            'aside ul',
+            '.ant-pro-sider ul'
+        ];
+        for (var s = 0; s < selectors.length; s++) {
+            var list = document.querySelectorAll(selectors[s]);
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].querySelectorAll('li').length > 0) return list[i];
+            }
+        }
+        // 最后兜底：找 li 最多且包含 #/ 链接的 ul
+        var uls = document.querySelectorAll('ul');
+        var best = null;
+        var bestScore = 0;
+        for (var j = 0; j < uls.length; j++) {
+            var score = uls[j].querySelectorAll('li').length;
+            if (score > bestScore && uls[j].querySelectorAll('a[href*="#/"]').length > 0) {
+                best = uls[j];
+                bestScore = score;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * 自建菜单项（不依赖克隆原生节点），用于结构完全不匹配的后台。
+     */
+    function buildMenuNode() {
+        var li = document.createElement('li');
+        li.className = 'ant-menu-item';
+        li.setAttribute('role', 'menuitem');
+        li.setAttribute('tabindex', '-1');
+        li.setAttribute(MENU_FLAG, '1');
+        li.setAttribute('data-subaccount-menu', '1');
+        li.style.cssText = 'display:flex;align-items:center;';
+        var a = document.createElement('a');
+        a.setAttribute('href', ROUTE_PREFIX);
+        a.style.cssText = 'color:inherit;text-decoration:none;display:block;width:100%;padding:0 16px;line-height:40px;';
+        a.textContent = MENU_TEXT;
+        li.appendChild(a);
+        return li;
+    }
+
+    /**
+     * 兜底入口：菜单注入失败时，在右下角放一个悬浮按钮，保证功能可达。
+     */
+    function ensureFloatingEntry() {
+        if (document.getElementById('subaccount-floating-entry')) return true;
+        var btn = document.createElement('button');
+        btn.id = 'subaccount-floating-entry';
+        btn.type = 'button';
+        btn.textContent = MENU_TEXT;
+        btn.style.cssText = [
+            'position:fixed', 'right:18px', 'bottom:18px', 'z-index:2147483000',
+            'padding:8px 14px', 'border-radius:18px', 'border:1px solid #1677ff',
+            'background:#1677ff', 'color:#fff', 'font-size:13px', 'cursor:pointer',
+            'box-shadow:0 2px 8px rgba(0,0,0,.15)'
+        ].join(';');
+        btn.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            setHash(ROUTE_PREFIX);
+            scheduleVisibility();
+            window.setTimeout(scheduleVisibility, 60);
+        });
+        document.body.appendChild(btn);
+        log('原生菜单结构未识别，已启用右下角「' + MENU_TEXT + '」悬浮入口');
+        return true;
     }
 
     /**
@@ -278,12 +385,15 @@
      * 这样克隆后插入的是同级菜单项，而不是嵌套 <a>。
      */
     function resolveMenuHost(link) {
+        if (link.tagName === 'LI') {
+            return { item: link, host: link.parentNode };
+        }
         var list = closestListAncestor(link);
         if (list && list.parentNode) {
             var item = closestListItem(list, link);
             if (item) return { item: item, host: list };
         }
-        // 结构不符合预期时退回：直接克隆 <a> 并作为其兄弟节点插入
+        // 结构不符合预期时退回：直接克隆该节点并作为其兄弟节点插入
         return { item: link, host: link.parentNode };
     }
 
@@ -317,7 +427,21 @@
         }
 
         var userLink = findUserMenuItem();
-        if (!userLink || !userLink.parentNode) return false;
+
+        // 结构完全不匹配：自建菜单项插入「像菜单」的容器
+        if (!userLink) {
+            var fallbackHost = findMenuContainer();
+            if (fallbackHost) {
+                var own = buildMenuNode();
+                fallbackHost.appendChild(own);
+                bindMenuClick(own);
+                diagnostics.mode = 'built';
+                log('未识别原生菜单，已在菜单容器末尾自建「' + MENU_TEXT + '」');
+                return true;
+            }
+            return false;
+        }
+        if (!userLink.parentNode) return false;
 
         var resolved = resolveMenuHost(userLink);
         var nativeItem = resolved.item;
@@ -331,12 +455,11 @@
         // 找到克隆体内对应的链接并改成子账号路由
         var clonedLinks = node.tagName === 'A' ? [node] : node.querySelectorAll('a[href]');
         for (var k = 0; k < clonedLinks.length; k++) {
-            if (isInjectedItem(clonedLinks[k])) continue;
-            if (isUserMenuHref(clonedLinks[k].getAttribute('href'))) {
-                clonedLinks[k].setAttribute('href', subAccountsHref(clonedLinks[k].getAttribute('href')));
-            }
+            if (clonedLinks[k].getAttribute(MENU_FLAG) === '1') continue;
+            clonedLinks[k].setAttribute('href', ROUTE_PREFIX);
+            clonedLinks[k].setAttribute(MENU_FLAG, '1');
         }
-        if (node.tagName === 'A' && !isUserMenuHref(node.getAttribute('href'))) {
+        if (node.tagName === 'A') {
             node.setAttribute('href', ROUTE_PREFIX);
         }
 
@@ -359,9 +482,17 @@
         if (!replaced && node.tagName === 'A') node.textContent = MENU_TEXT;
 
         host.insertBefore(node, nativeItem.nextSibling);
+        bindMenuClick(node);
+        diagnostics.mode = 'cloned';
+        log('菜单已注入，位于「用户管理」之后');
+        return true;
+    }
 
-        // hash 路由：#/sub-accounts 不注册在 SPA 内，SPA 会显示 404 内容，
-        // 此处会同步触发 hashchange -> 显示遮罩层。
+    /**
+     * 点击注入项：直接切 hash，触发遮罩页显示。
+     * （#/sub-accounts 不在 SPA 路由表内，SPA 自身会渲染 404，由遮罩层覆盖）
+     */
+    function bindMenuClick(node) {
         node.addEventListener('click', function (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -369,9 +500,6 @@
             scheduleVisibility();
             window.setTimeout(scheduleVisibility, 60);
         }, true);
-
-        log('菜单已注入，位于「用户管理」之后');
-        return true;
     }
 
     function hasOwnText(node) {
@@ -407,13 +535,48 @@
             } catch (e) {
                 log('菜单注入异常', e);
             }
-            if (ok) return;
+            diagnostics.attempts = attempt + 1;
+            if (ok) {
+                diagnostics.ok = true;
+                // 菜单可用后移除兜底悬浮入口
+                var floating = document.getElementById('subaccount-floating-entry');
+                if (floating && floating.parentNode) floating.parentNode.removeChild(floating);
+                return;
+            }
             attempt += 1;
+            // 侧边栏/DOM 迟迟没有菜单结构时，先给出悬浮入口，保证功能随时可达
+            if (attempt >= 4
+                && !document.getElementById('subaccount-floating-entry')
+                && !findUserMenuItem()
+                && !findMenuContainer()) {
+                ensureFloatingEntry();
+            }
             if (attempt < MENU_RETRY_DELAYS.length) {
                 window.setTimeout(run, MENU_RETRY_DELAYS[attempt]);
+            } else {
+                diagnostics.ok = false;
+                ensureFloatingEntry();
             }
         }
         run();
+    }
+
+    /**
+     * 诊断信息：浏览器控制台执行 window.__saMenuDebug() 可查看菜单识别情况。
+     */
+    function exposeDiagnostics() {
+        window.__saMenuDebug = function () {
+            return {
+                injected: !!document.querySelector('[' + MENU_FLAG + '="1"]'),
+                mode: diagnostics.mode,
+                attempts: diagnostics.attempts,
+                nativeMenuFound: !!findUserMenuItem(),
+                menuContainerFound: !!findMenuContainer(),
+                floatingEntry: !!document.getElementById('subaccount-floating-entry'),
+                route: String(location.hash || ''),
+                panelVisible: !!(state.root && state.root.style.display !== 'none')
+            };
+        };
     }
 
     /* ==================================================================
@@ -496,7 +659,11 @@
         var hash = String(location.hash || '');
         var cut = hash.indexOf('?');
         if (cut !== -1) hash = hash.substring(0, cut);
-        return hash.indexOf(ROUTE_PREFIX) === 0;
+        if (hash.indexOf(ROUTE_PREFIX) === 0) return true;
+        // 直链兜底：/secure_path?sub_account=1 也能打开本页（不依赖 SPA 路由）
+        var search = String(location.search || '');
+        if (search.indexOf('sub_account=1') !== -1) return true;
+        return false;
     }
 
     /** 让遮罩层避开 SPA 顶部 header 与左侧 sidebar */
@@ -1501,6 +1668,7 @@
     }
 
     function start() {
+        exposeDiagnostics();
         ensureMenuWithRetry();
         scheduleVisibility();
 
