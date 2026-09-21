@@ -199,7 +199,8 @@ class CheckinService
         $nextReward = $this->nextReward($nextFor);
 
         $todayBytes = $checkedIn ? (int)$last->reward_bytes : 0;
-        $todayText = $checkedIn
+        // 无奖励时不显示文案（EZ-Theme 用 reward_bytes > 0 做显示开关）
+        $todayText = $checkedIn && $todayBytes > 0
             ? ((string)$last->reward_text !== '' ? (string)$last->reward_text : $this->formatBytes($todayBytes))
             : '';
 
