@@ -362,9 +362,9 @@ class CheckinTest extends CheckinPromotionTestCase
         $relation->parent_user_id = $parent->id;
         $relation->child_user_id = $child->id;
         $relation->traffic_limit = 0;
-        $relation->status = 1;
-        $relation->uuid = $this->fakeGuid(true);
-        $relation->token = $this->fakeGuid();
+        $relation->remark = null;
+        $relation->status = SubAccountRelation::STATUS_ENABLED;
+        $relation->created_by_parent = 0;
         $relation->created_at = time();
         $relation->updated_at = time();
         $relation->save();
