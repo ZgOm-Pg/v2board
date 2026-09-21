@@ -300,7 +300,7 @@
             banners: {},
             rewards: { items: [], card: null, editId: null },
             logs: { items: [], total: 0, current: 1, card: null, readFilters: null, inflight: false },
-            config: { data: null },
+            config: { data: null, section: 'checkin', enableKey: 'checkin_enable' },
             stats: null
         };
 
@@ -576,8 +576,23 @@
             var card = settingsCard;
             card.setLoading(true);
             card.setError(null);
-            apiGet('/config/fetch', { key: 'checkin' }).then(function (data) {
-                var cfg = (data && data.checkin) || {};
+            // 兼容两种部署：
+            //   - 裸 V2Board：config 段 'checkin'，开关键 checkin_enable
+            //   - v3board：v3board 自带签到已占用 checkin_enable，
+            //     故 EZ-Theme 签到使用独立段 'theme_checkin' / 键 theme_checkin_enable
+            apiGet('/config/fetch', { key: 'theme_checkin' }).then(function (data) {
+                var cfg = (data && data.theme_checkin) || null;
+                if (cfg && cfg.theme_checkin_enable !== undefined) {
+                    state.config.section = 'theme_checkin';
+                    state.config.enableKey = 'theme_checkin_enable';
+                    return cfg;
+                }
+                return apiGet('/config/fetch', { key: 'checkin' }).then(function (inner) {
+                    state.config.section = 'checkin';
+                    state.config.enableKey = 'checkin_enable';
+                    return (inner && inner.checkin) || {};
+                });
+            }).then(function (cfg) {
                 state.config.data = cfg;
                 renderSettings(cfg);
             }).catch(function (e) { card.setError(e.message); })
@@ -587,18 +602,18 @@
         function renderSettings(cfg) {
             var body = settingsCard.getBody();
             clear(body);
-            var enableSelect = buildSelect(String(num(cfg.checkin_enable, 0)), [
+            var enableKey = state.config.enableKey || 'checkin_enable';
+            var enableSelect = buildSelect(String(num(cfg[enableKey], 0)), [
                 { value: '0', text: '关闭（默认）' }, { value: '1', text: '开启' }
             ], { style: 'width:160px' });
             var tzInput = buildInput({ value: cfg.checkin_timezone || 'Asia/Shanghai', style: 'width:220px' });
             var row = el('div', 'cp-form-row');
-            row.appendChild(buildField('签到功能', enableSelect));
+            row.appendChild(buildField('签到功能（' + enableKey + '）', enableSelect));
             row.appendChild(buildField('签到时区（PHP 时区名）', tzInput));
             row.appendChild(buildField('', buildButton('保存设置', 'cp-btn cp-btn-primary', function () {
-                apiPost('/config/save', {
-                    checkin_enable: enableSelect.value,
-                    checkin_timezone: tzInput.value.trim()
-                }).then(function () {
+                var payload = { checkin_timezone: tzInput.value.trim() };
+                payload[enableKey] = enableSelect.value;
+                apiPost('/config/save', payload).then(function () {
                     showBanner(state.banners.settings, 'success', '设置已保存（后台需重载配置后生效，页面已即时更新）');
                     loadStats();
                 }).catch(function (e) {
