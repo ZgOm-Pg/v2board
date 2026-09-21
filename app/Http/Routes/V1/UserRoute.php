@@ -87,6 +87,21 @@ class UserRoute
                 $router->post('/sub-account/reset-subscribe', 'V1\\User\\SubAccountController@resetSubscribe');
                 $router->post('/sub-account/unbind', 'V1\\User\\SubAccountController@unbind');
             });
+
+            // ---------------------------------------------------------------
+            // 每日签到（EZ-Theme 契约）
+            // 子账号领取在服务层拒绝（启用中的子账号不得独立领取签到流量）
+            // ---------------------------------------------------------------
+            $router->get ('/checkin/status', 'V1\\User\\CheckinController@status');
+            $router->post('/checkin/claim', 'V1\\User\\CheckinController@claim');
+
+            // ---------------------------------------------------------------
+            // 活动弹窗（EZ-Theme 契约）
+            // claim 只写行为记录并返回优惠码，不真正发券
+            // ---------------------------------------------------------------
+            $router->get ('/promotion/popup', 'V1\\User\\PromotionController@popup');
+            $router->post('/promotion/claim', 'V1\\User\\PromotionController@claim');
+            $router->post('/promotion/record', 'V1\\User\\PromotionController@record');
         });
     }
 }

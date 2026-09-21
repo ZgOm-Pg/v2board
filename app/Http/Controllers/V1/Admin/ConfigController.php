@@ -177,6 +177,11 @@ class ConfigController extends Controller
                 'sub_account_max_count' => (int)config('v2board.sub_account_max_count', 1),
                 'sub_account_email_code_ttl' => (int)config('v2board.sub_account_email_code_ttl', 300),
                 'sub_account_email_code_interval' => (int)config('v2board.sub_account_email_code_interval', 60)
+            ],
+            // 每日签到（默认关闭；规则在「签到管理」页面维护）
+            'checkin' => [
+                'checkin_enable' => (int)config('v2board.checkin_enable', 0),
+                'checkin_timezone' => (string)config('v2board.checkin_timezone', 'Asia/Shanghai')
             ]
         ];
         if ($key && isset($data[$key])) {

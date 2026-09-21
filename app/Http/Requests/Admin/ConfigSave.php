@@ -109,6 +109,9 @@ class ConfigSave extends FormRequest
         'sub_account_max_count' => 'integer|min:1',
         'sub_account_email_code_ttl' => 'integer|min:30',
         'sub_account_email_code_interval' => 'integer|min:5',
+        // daily checkin
+        'checkin_enable' => 'in:0,1',
+        'checkin_timezone' => 'string|max:64',
     ];
     /**
      * Get the validation rules that apply to the request.

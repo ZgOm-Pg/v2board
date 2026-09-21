@@ -1,0 +1,464 @@
+/*!
+ * 签到管理 / 活动弹窗 —— 后台原生页面样式
+ *
+ * 页面容器由 umi.js 原生路由提供： #checkin-admin-root / #promotion-admin-root
+ * 所有选择器都限定在这两个容器内；不使用 fixed 遮罩，不使用大 z-index。
+ */
+
+#checkin-admin-root,
+#promotion-admin-root {
+    display: block;
+    width: 100%;
+    min-height: 320px;
+    padding: 16px;
+    box-sizing: border-box;
+    color: inherit;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#checkin-admin-root *,
+#checkin-admin-root *::before,
+#checkin-admin-root *::after,
+#promotion-admin-root *,
+#promotion-admin-root *::before,
+#promotion-admin-root *::after {
+    box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------ 页头 */
+
+#checkin-admin-root .cp-header,
+#promotion-admin-root .cp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #fff;
+    border: 1px solid #e6e8eb;
+    border-radius: 4px;
+    margin-bottom: 12px;
+}
+
+#checkin-admin-root .cp-header-title,
+#promotion-admin-root .cp-header-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#checkin-admin-root .cp-header-name,
+#promotion-admin-root .cp-header-name {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+#checkin-admin-root .cp-header-sub,
+#promotion-admin-root .cp-header-sub {
+    font-size: 12px;
+    color: #8a9099;
+}
+
+#checkin-admin-root .cp-header-actions,
+#promotion-admin-root .cp-header-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------------ 按钮 */
+
+#checkin-admin-root .cp-btn,
+#promotion-admin-root .cp-btn {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 13px;
+    line-height: 22px;
+    border-radius: 4px;
+    border: 1px solid #d9d9d9;
+    background: #fff;
+    color: #1f2329;
+    cursor: pointer;
+}
+
+#checkin-admin-root .cp-btn:hover,
+#promotion-admin-root .cp-btn:hover {
+    border-color: #1677ff;
+    color: #1677ff;
+}
+
+#checkin-admin-root .cp-btn[disabled],
+#promotion-admin-root .cp-btn[disabled] {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+#checkin-admin-root .cp-btn-primary,
+#promotion-admin-root .cp-btn-primary {
+    background: #1677ff;
+    border-color: #1677ff;
+    color: #fff;
+}
+
+#checkin-admin-root .cp-btn-primary:hover,
+#promotion-admin-root .cp-btn-primary:hover {
+    background: #4096ff;
+    border-color: #4096ff;
+    color: #fff;
+}
+
+#checkin-admin-root .cp-btn-ghost,
+#promotion-admin-root .cp-btn-ghost {
+    background: #fafafa;
+}
+
+#checkin-admin-root .cp-btn-danger,
+#promotion-admin-root .cp-btn-danger {
+    border-color: #ffccc7;
+    color: #cf1322;
+}
+
+#checkin-admin-root .cp-btn-danger:hover,
+#promotion-admin-root .cp-btn-danger:hover {
+    border-color: #cf1322;
+    color: #cf1322;
+}
+
+#checkin-admin-root .cp-btn-sm,
+#promotion-admin-root .cp-btn-sm {
+    padding: 1px 8px;
+    font-size: 12px;
+    line-height: 20px;
+    margin-right: 6px;
+}
+
+/* ------------------------------------------------------------------ 标签页 */
+
+#checkin-admin-root .cp-tabbar,
+#promotion-admin-root .cp-tabbar {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid #e6e8eb;
+    margin-bottom: 12px;
+}
+
+#checkin-admin-root .cp-tab,
+#promotion-admin-root .cp-tab {
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    color: #4b5158;
+}
+
+#checkin-admin-root .cp-tab-active,
+#promotion-admin-root .cp-tab-active {
+    background: #fff;
+    border-color: #e6e8eb;
+    border-radius: 4px 4px 0 0;
+    color: #1677ff;
+    font-weight: 600;
+    margin-bottom: -1px;
+}
+
+/* ------------------------------------------------------------------ 提示条 */
+
+#checkin-admin-root .cp-banner,
+#promotion-admin-root .cp-banner {
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+
+#checkin-admin-root .cp-banner-success,
+#promotion-admin-root .cp-banner-success {
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    color: #237804;
+}
+
+#checkin-admin-root .cp-banner-error,
+#promotion-admin-root .cp-banner-error {
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #cf1322;
+}
+
+/* ------------------------------------------------------------------ 卡片 */
+
+#checkin-admin-root .cp-card,
+#promotion-admin-root .cp-card {
+    background: #fff;
+    border: 1px solid #e6e8eb;
+    border-radius: 4px;
+    margin-bottom: 12px;
+}
+
+#checkin-admin-root .cp-card-head,
+#promotion-admin-root .cp-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#checkin-admin-root .cp-card-title,
+#promotion-admin-root .cp-card-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#checkin-admin-root .cp-card-body,
+#promotion-admin-root .cp-card-body {
+    padding: 12px 16px;
+}
+
+#checkin-admin-root .cp-loading,
+#promotion-admin-root .cp-loading {
+    padding: 10px 16px;
+    color: #8a9099;
+}
+
+#checkin-admin-root .cp-error,
+#promotion-admin-root .cp-error {
+    padding: 10px 16px;
+    color: #cf1322;
+}
+
+#checkin-admin-root .cp-hint,
+#promotion-admin-root .cp-hint {
+    margin: 10px 0 0;
+    color: #8a9099;
+    font-size: 12px;
+}
+
+/* ------------------------------------------------------------------ 表格 */
+
+#checkin-admin-root .cp-table-wrap,
+#promotion-admin-root .cp-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+#checkin-admin-root .cp-table,
+#promotion-admin-root .cp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+#checkin-admin-root .cp-table th,
+#checkin-admin-root .cp-table td,
+#promotion-admin-root .cp-table th,
+#promotion-admin-root .cp-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+    vertical-align: middle;
+}
+
+#checkin-admin-root .cp-table th,
+#promotion-admin-root .cp-table th {
+    background: #f5f6f8;
+    font-weight: 600;
+    color: #414750;
+    white-space: nowrap;
+}
+
+#checkin-admin-root .cp-col-id,
+#promotion-admin-root .cp-col-id {
+    width: 70px;
+    color: #8a9099;
+}
+
+#checkin-admin-root .cp-empty,
+#promotion-admin-root .cp-empty {
+    text-align: center;
+    color: #8a9099;
+    padding: 24px 0;
+}
+
+#checkin-admin-root .cp-pager,
+#promotion-admin-root .cp-pager {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+}
+
+#checkin-admin-root .cp-pager-info,
+#promotion-admin-root .cp-pager-info {
+    color: #8a9099;
+    font-size: 12px;
+}
+
+/* ------------------------------------------------------------------ 统计 */
+
+#checkin-admin-root .cp-stats,
+#promotion-admin-root .cp-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#checkin-admin-root .cp-stat,
+#promotion-admin-root .cp-stat {
+    display: flex;
+    flex-direction: column;
+    min-width: 120px;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #e6e8eb;
+    border-radius: 4px;
+}
+
+#checkin-admin-root .cp-stat-label,
+#promotion-admin-root .cp-stat-label {
+    color: #8a9099;
+    font-size: 12px;
+}
+
+#checkin-admin-root .cp-stat-value,
+#promotion-admin-root .cp-stat-value {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ 表单 */
+
+#checkin-admin-root .cp-filter-bar,
+#promotion-admin-root .cp-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+    padding: 10px 16px;
+    background: #fff;
+    border: 1px solid #e6e8eb;
+    border-radius: 4px;
+    margin-bottom: 12px;
+}
+
+#checkin-admin-root .cp-form-row,
+#promotion-admin-root .cp-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 10px;
+}
+
+#checkin-admin-root .cp-field,
+#promotion-admin-root .cp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#checkin-admin-root .cp-label,
+#promotion-admin-root .cp-label {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+#checkin-admin-root input[type="text"],
+#checkin-admin-root input[type="number"],
+#checkin-admin-root input[type="date"],
+#checkin-admin-root input[type="datetime-local"],
+#checkin-admin-root select,
+#promotion-admin-root input[type="text"],
+#promotion-admin-root input[type="number"],
+#promotion-admin-root input[type="date"],
+#promotion-admin-root input[type="datetime-local"],
+#promotion-admin-root select {
+    padding: 4px 8px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 13px;
+    min-height: 30px;
+    background: #fff;
+    color: inherit;
+}
+
+#checkin-admin-root .cp-textarea,
+#promotion-admin-root .cp-textarea {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+#checkin-admin-root .cp-checkbox-row,
+#promotion-admin-root .cp-checkbox-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#checkin-admin-root .cp-checkbox,
+#promotion-admin-root .cp-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #4b5158;
+}
+
+#checkin-admin-root .cp-edit-form,
+#promotion-admin-root .cp-edit-form {
+    padding: 12px;
+    margin-bottom: 14px;
+    background: #fbfbfc;
+    border: 1px solid #e6e8eb;
+    border-radius: 4px;
+}
+
+#checkin-admin-root .cp-edit-title,
+#promotion-admin-root .cp-edit-title {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#checkin-admin-root .cp-edit-actions,
+#promotion-admin-root .cp-edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+/* ------------------------------------------------------------------ 窄屏 */
+
+@media (max-width: 720px) {
+    #checkin-admin-root .cp-header,
+    #promotion-admin-root .cp-header,
+    #checkin-admin-root .cp-filter-bar,
+    #promotion-admin-root .cp-filter-bar {
+        padding: 8px 10px;
+    }
+
+    #checkin-admin-root .cp-card-body,
+    #promotion-admin-root .cp-card-body {
+        padding: 10px;
+    }
+
+    #checkin-admin-root .cp-form-row,
+    #promotion-admin-root .cp-form-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
