@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/assets/admin/umi.css?v={{$assetVer}}">
     <link rel="stylesheet" href="/assets/admin/custom.css?v={{$assetVer}}">
     <link rel="stylesheet" href="/assets/admin/subaccount-admin-page.css?v={{$assetVer}}">
+    <link rel="stylesheet" href="/assets/admin/checkin-promotion-admin.css?v={{$assetVer}}">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
     <title>{{$title}}</title>
@@ -42,6 +43,7 @@
 <script src="/assets/admin/components.async.js?v={{$assetVer}}"></script>
 <script src="/assets/admin/umi.js?v={{$assetVer}}"></script>
 <script src="/assets/admin/subaccount-admin-page.js?v={{$assetVer}}"></script>
+<script src="/assets/admin/checkin-promotion-admin-page.js?v={{$assetVer}}"></script>
 </body>
 
 </html>
