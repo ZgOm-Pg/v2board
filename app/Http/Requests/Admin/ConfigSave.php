@@ -44,6 +44,8 @@ class ConfigSave extends FormRequest
         'currency_symbol' => '',
         'checkin_enable' => 'in:0,1',
         'lucky_checkin_enable' => 'in:0,1',
+        'theme_checkin_enable' => 'in:0,1',
+        'checkin_timezone' => 'string|max:64',
         // subscribe
         'plan_change_enable' => 'in:0,1',
         'reset_traffic_method' => 'in:0,1,2,3,4',

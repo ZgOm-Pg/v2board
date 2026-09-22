@@ -80,7 +80,7 @@ class SubAccountThemeContractTest extends SubAccountTestCase
         $this->enableSubAccount(5);
         $parent = $this->makeParent();
         $email = 'theme-bind@example.com';
-        $this->seedBindCode($email, '012345');
+        $this->seedBindCode($parent, $email, '012345');
 
         // 主题用 form-urlencoded 提交，且 email_code 是字符串（可能带前导零）
         $response = $this->post('/api/v1/user/sub-account/bind', [

@@ -21236,6 +21236,27 @@
                             className: "nav-main-link-icon si si-users"
                         })
                     }, {
+                        title: "\u5b50\u8d26\u53f7\u7ba1\u7406",
+                        type: "item",
+                        href: "/sub-accounts",
+                        icon: o.a.createElement("i", {
+                            className: "nav-main-link-icon si si-user-follow"
+                        })
+                    }, {
+                        title: "\u7b7e\u5230\u7ba1\u7406",
+                        type: "item",
+                        href: "/checkin",
+                        icon: o.a.createElement("i", {
+                            className: "nav-main-link-icon si si-calendar"
+                        })
+                    }, {
+                        title: "\u6d3b\u52a8\u5f39\u7a97",
+                        type: "item",
+                        href: "/promotion",
+                        icon: o.a.createElement("i", {
+                            className: "nav-main-link-icon si si-bell"
+                        })
+                    }, {
                         title: "\u516c\u544a\u7ba1\u7406",
                         type: "item",
                         href: "/notice",
@@ -82440,6 +82461,36 @@
           , l = n("Hg0r")
           , c = l["c"].ConnectedRouter
           , u = [{
+            path: "/checkin",
+            exact: !0,
+            component: function(e) {
+                return i.a.createElement(n("Bl7J")["a"], Object.assign({}, e, {
+                    title: "\u7b7e\u5230\u7ba1\u7406"
+                }), i.a.createElement("div", {
+                    id: "checkin-admin-root"
+                }))
+            }
+            }, {
+            path: "/promotion",
+            exact: !0,
+            component: function(e) {
+                return i.a.createElement(n("Bl7J")["a"], Object.assign({}, e, {
+                    title: "\u6d3b\u52a8\u5f39\u7a97"
+                }), i.a.createElement("div", {
+                    id: "promotion-admin-root"
+                }))
+            }
+            }, {
+            path: "/sub-accounts",
+            exact: !0,
+            component: function(e) {
+                return i.a.createElement(n("Bl7J")["a"], Object.assign({}, e, {
+                    title: "\u5b50\u8d26\u53f7\u7ba1\u7406"
+                }), i.a.createElement("div", {
+                    id: "subaccount-admin-root"
+                }))
+            }
+            }, {
             path: "/newPeriodLog",
             exact: !0,
             component: function(e) {

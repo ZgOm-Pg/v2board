@@ -95,14 +95,31 @@ POST /api/v1/{secure_path}/sub-account/reset-traffic    重置子账号流量
 POST /api/v1/{secure_path}/sub-account/unbind           解绑
 ```
 
-后台页面通过克隆原生「用户管理」菜单节点注入「子账号管理」，**不修改 `public/assets/admin/umi.js`**，
-资源为独立文件 `public/assets/admin/subaccount-admin-page.{js,css}`，在 `resources/views/admin.blade.php` 中加载。
+后台页面是**原生页面**：菜单项与路由由 umi 编译产物 `public/assets/admin/umi.js`
+中的原生菜单数组 / 路由表提供（`href: "/sub-accounts"`、`path: "/sub-accounts"`），
+页面容器为 `<div id="subaccount-admin-root"></div>`；样式与逻辑在
+`public/assets/admin/subaccount-admin-page.{js,css}`（在 `resources/views/admin.blade.php` 中加载），
+脚本只在原生路由容器内挂载界面，**不扫描、不克隆、不修改侧边栏菜单**，无遮罩层与 hash 轮询。
+
+由于 umi.js 是编译产物，菜单/路由补丁由脚本幂等写入：
+
+```bash
+php tools/patch-subaccount-admin.php --check    # 只检查锚点与当前状态
+php tools/patch-subaccount-admin.php --apply    # 幂等应用（自动备份 umi.js.bak-<时间戳>）
+```
+
+- 锚点：菜单项 `title: "\u7528\u6237\u7ba1\u7406" … href: "/user" … si si-users`；
+  路由表起点 `, u = [{` + 紧随其后的第一个 `path: "…"`。两者都必须**恰好命中一次**，否则脚本直接失败、不写入。
+- 同时适配 `wyx2685/v2board` 基线与 `codeman857/v3board` 两套产物（结构一致，仅首个路由不同）。
+- 上游同步后 umi.js 会被覆盖为未打补丁的版本，**重新执行 `--apply` 即可**；
+  若锚点不匹配（前端结构变化），脚本会明确报错，需先核对新产物中的菜单/路由结构再更新锚点规则。
 
 ## 六、升级
 
 ```bash
 git fetch upstream && git merge upstream/master   # 标准上游同步
 php artisan sub-account:install --check           # 结构仍需匹配
+php tools/patch-subaccount-admin.php --apply      # 重新打入后台原生菜单/路由补丁
 php artisan config:cache
 ```
 
@@ -137,10 +154,27 @@ php tools/subaccount-migrate-relations.php --source=/path/relations.jsonl --appl
 - 停用关系、孤儿关系、目标缺用户、邮箱不一致、ID 冲突、自绑定、多层关系一律进入异常清单文件，不导入；
 - 重复执行幂等（同一 `child_user_id` 复用原关系行）。
 
-## 九、测试
+## 九、绑定与权限约束（加固说明）
+
+1. **主账号绑定资格**：统一入口 `SubAccountService::assertEligibleParent()`，
+   `sendBindCode` 与 `bind` 都会调用；`bind` 在事务内 `lockForUpdate()` 之后**再次校验**，
+   防止"验证码发出后主账号被封禁/过期/清空套餐/额度归零"。
+   检查项：不是子账号、未封禁、`plan_id` 非 NULL、`expired_at` 为 NULL 或未过期、`transfer_enable > 0`、子账号数量未超上限。
+   **不要求**主账号还有剩余流量 —— 流量耗尽只影响子账号能否连接节点。
+2. **验证码作用域**：缓存键为 `parent_user_id + 规范化邮箱 + APP_KEY`（sha256），
+   因此 A 发出的验证码不能被 B 使用，两个主账号的发送冷却互相独立，验证码仍然一次性。
+3. **归档关系权限**：用户端所有关系操作（update / change-password / reset-traffic / subscribe /
+   reset-subscribe / unbind）统一走 `requireActiveOwnedRelation()` —— 要求属于当前主账号、
+   `status = 1`、且父子用户仍存在；解绑后的原主账号不得再读取订阅、改密、重置 Token/流量或修改关系。
+   管理端使用 `requireOwnedRelationIncludingArchived()`，仍可查看与处理归档关系。
+4. **永久有效主账号**：`ServerService::getAvailableUsers()` 中子账号 JOIN 的到期条件为
+   `p.expired_at IS NULL OR p.expired_at >= now`，与 `UserService::isAvailable()`、
+   `SubAccountEntitlement` 语义一致；已过期或流量耗尽的主账号，其子账号不出现在节点用户名单。
+
+## 十、测试
 
 ```bash
-php vendor/bin/phpunit --filter 'SubAccount'         # 119 tests / 923 assertions
+php vendor/bin/phpunit --filter 'SubAccount'
 php tools/subaccount-redis-traffic-test.php          # 真实 Redis 精确流量测试（20 项）
 php tools/subaccount-acceptance.php http://127.0.0.1:8085   # 独立实例真实 HTTP 验收（53 项）
 ```

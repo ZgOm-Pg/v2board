@@ -107,6 +107,11 @@ class ConfigController extends Controller
                 'checkin_enable' => (int) config('v2board.checkin_enable', 0),
                 'lucky_checkin_enable' => (int) config('v2board.lucky_checkin_enable', 0),
             ],
+            // EZ-Theme 兼容签到（独立开关，避免与 v3board 自带 checkin_enable 相互影响）
+            'theme_checkin' => [
+                'theme_checkin_enable' => (int) config('v2board.theme_checkin_enable', 0),
+                'checkin_timezone' => (string) config('v2board.checkin_timezone', 'Asia/Shanghai'),
+            ],
             'subscribe' => [
                 'plan_change_enable' => (int) config('v2board.plan_change_enable', 1),
                 'reset_traffic_method' => (int) config('v2board.reset_traffic_method', 0),

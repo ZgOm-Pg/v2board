@@ -1,26 +1,28 @@
 /*!
- * 子账号管理 - 独立页面样式
+ * 子账号管理 - 后台原生页面样式
  *
- * 所有选择器均以 #subaccount-admin-root 作用域限定，
- * 不会影响 umi SPA 的其它界面。
+ * 页面由 umi 原生路由 /sub-accounts 提供容器 #subaccount-admin-root，
+ * 所有选择器均在该容器内作用域限定：
+ *   - 不使用 fixed 遮罩，不使用大 z-index；
+ *   - 字体/配色沿用后台自身的继承值，保证与 V2Board 后台一致。
  */
 
 #subaccount-admin-root {
-    position: fixed;
-    z-index: 1000;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #fff;
-    overflow: auto;
+    display: block;
+    width: 100%;
+    min-height: 320px;
+    padding: 16px;
+    background: transparent;
     box-sizing: border-box;
-    color: #1f2329;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-        "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    color: inherit;
+    font-family: inherit;
     font-size: 13px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+}
+
+#subaccount-admin-root .sa-page {
+    max-width: 100%;
 }
 
 #subaccount-admin-root *,

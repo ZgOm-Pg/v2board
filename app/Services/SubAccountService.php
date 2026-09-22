@@ -334,11 +334,46 @@ class SubAccountService
     // ------------------------------------------------------------ 邮箱验证码
 
     /**
-     * 缓存键不含明文邮箱: sha256(email + app.key)。
+     * 验证码缓存键：parent_user_id + 规范化邮箱 + APP_KEY。
+     *
+     * 作用域必须包含主账号：否则主账号 A 发出的验证码可以被主账号 B 用来绑定同一邮箱。
+     * 键中不含明文邮箱（sha256）。
      */
-    private function emailCacheKey($email)
+    public function emailCacheKey($parentUserId, $email)
     {
-        return hash('sha256', strtolower(trim($email)) . '|' . config('app.key'));
+        return hash('sha256', (int)$parentUserId . '|' . strtolower(trim($email)) . '|' . config('app.key'));
+    }
+
+    /**
+     * 主账号绑定资格（统一入口）。
+     *
+     * sendBindCode 与 bind 都必须调用；bind 在事务内锁定主账号后必须再次调用，
+     * 避免"发出验证码之后主账号状态发生变化"（封禁/过期/套餐被清空/额度归零）。
+     *
+     * 注意：这里**不要求**主账号还有剩余流量 —— 流量耗尽只影响子账号能否连接节点
+     * （见 SubAccountEntitlement::canConnect() 与 ServerService::getAvailableUsers()）。
+     */
+    public function assertEligibleParent(User $parent)
+    {
+        if (!$this->isEnabled()) {
+            abort(500, __('Sub-account is not enabled'));
+        }
+        if ($this->isSubAccount($parent)) {
+            abort(403, __('Sub-account is not allowed to create sub-accounts'));
+        }
+        if ((int)$parent->banned === 1) {
+            abort(500, __('The account has been banned'));
+        }
+        if ($parent->plan_id === null) {
+            abort(500, __('The parent account has no active plan'));
+        }
+        if ($parent->expired_at !== null && (int)$parent->expired_at <= time()) {
+            abort(500, __('The parent account plan has expired'));
+        }
+        if ((int)$parent->transfer_enable <= 0) {
+            abort(500, __('The parent account has no traffic quota'));
+        }
+        return true;
     }
 
     /**
@@ -346,8 +381,7 @@ class SubAccountService
      */
     public function sendBindCode(User $parent, $email, $ip)
     {
-        if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
-        if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to create sub-accounts'));
+        $this->assertEligibleParent($parent);
 
         $email = strtolower(trim((string)$email));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) abort(500, __('Email format is incorrect'));
@@ -364,7 +398,7 @@ class SubAccountService
         RateLimiter::hit($userKey, 3600);
         RateLimiter::hit($ipKey, 3600);
 
-        $hash = $this->emailCacheKey($email);
+        $hash = $this->emailCacheKey($parent->id, $email);
         if (Cache::get(CacheKey::get('SUB_ACCOUNT_EMAIL_CODE_LAST_SEND', $hash))) {
             abort(500, __('Email verification code has been sent, please request again later'));
         }
@@ -401,11 +435,11 @@ class SubAccountService
     }
 
     /**
-     * 原子校验并消费验证码。
+     * 原子校验并消费验证码（作用域：主账号 + 邮箱）。
      */
-    public function consumeEmailCode($email, $code)
+    public function consumeEmailCode($parentUserId, $email, $code)
     {
-        $hash = $this->emailCacheKey($email);
+        $hash = $this->emailCacheKey($parentUserId, $email);
         $cacheKey = CacheKey::get('SUB_ACCOUNT_EMAIL_CODE', $hash);
         $cached = Cache::get($cacheKey);
         if (!$cached) abort(500, __('The verification code has expired, please resend'));
@@ -427,8 +461,8 @@ class SubAccountService
      */
     public function bind(User $parent, array $input, $ip)
     {
-        if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
-        if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to create sub-accounts'));
+        // 绑定资格：与 sendBindCode 使用同一入口，避免两处判断漂移
+        $this->assertEligibleParent($parent);
 
         $email = strtolower(trim((string)(isset($input['email']) ? $input['email'] : '')));
         // EZ-Theme 发送 email_code（字符串，可能带前导零）；兼容旧的 code 字段名。
@@ -452,14 +486,19 @@ class SubAccountService
             abort(500, __('Password must be at least 8 characters'));
         }
 
-        // 一次性验证码: 在事务外先扣掉，避免事务回滚后验证码可被重复使用
-        $this->consumeEmailCode($email, $code);
+        // 一次性验证码（作用域: 主账号 + 邮箱）:
+        // 在事务外先扣掉，避免事务回滚后验证码可被重复使用
+        $this->consumeEmailCode($parent->id, $email, $code);
 
         DB::beginTransaction();
         try {
             // 行锁: 锁住主账号，串行化同一主账号的并发绑定
             $lockedParent = User::lockForUpdate()->find($parent->id);
             if (!$lockedParent) throw new \Exception(__('The user does not exist'));
+
+            // 验证码发出之后主账号状态可能已经变化（封禁/过期/套餐清空/额度归零），
+            // 因此必须在事务内、拿到行锁之后重新校验一次绑定资格。
+            $this->assertEligibleParent($lockedParent);
 
             $existsCount = SubAccountRelation::where('parent_user_id', $lockedParent->id)
                 ->where('status', SubAccountRelation::STATUS_ENABLED)
@@ -506,8 +545,12 @@ class SubAccountService
             if (!$relation->save()) throw new \Exception(__('Save failed'));
 
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            // 资格校验等业务异常直接透传（保留 403/500 语义与原始文案）
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                throw $e;
+            }
             abort(500, $e->getMessage());
         }
 
@@ -704,29 +747,54 @@ class SubAccountService
     // ------------------------------------------------------- 归属校验(防越权)
 
     /**
-     * 取指定主账号名下的关系，找不到直接 403/500，防止水平越权。
+     * 用户端使用：要求关系属于当前主账号、**处于启用状态**、且父子用户都仍然存在。
+     *
+     * 已解绑（归档）的关系对原主账号不再可操作：不得读取订阅、改密、
+     * 重置 Token、重置流量或修改关系（管理与审计仍可在后台查看）。
      */
-    public function requireOwnedRelation(User $parent, $relationId)
+    public function requireActiveOwnedRelation(User $parent, $relationId)
     {
         $relation = SubAccountRelation::find($relationId);
         if (!$relation) abort(500, __('The sub-account relation does not exist'));
         if ((int)$relation->parent_user_id !== (int)$parent->id) {
             abort(403, __('You do not have permission to operate this sub-account'));
         }
+        if ((int)$relation->status !== SubAccountRelation::STATUS_ENABLED) {
+            abort(500, __('The sub-account has been unbound'));
+        }
+        if (!User::where('id', $relation->child_user_id)->exists()) {
+            abort(500, __('The user does not exist'));
+        }
         return $relation;
     }
 
-    public function requireOwnedRelationByChildId(User $parent, $childUserId)
+    /**
+     * 用户端使用：按子账号 id 定位启用中的关系（含归属校验）。
+     */
+    public function requireActiveOwnedRelationByChildId(User $parent, $childUserId)
     {
         $relation = SubAccountRelation::where('parent_user_id', $parent->id)
             ->where('child_user_id', $childUserId)
+            ->where('status', SubAccountRelation::STATUS_ENABLED)
             ->first();
         if (!$relation) abort(403, __('You do not have permission to operate this sub-account'));
         return $relation;
     }
 
     /**
+     * 管理端使用：仅校验关系是否存在，**包含已归档（status=0）的关系**。
+     * 管理端需要能查看/处理历史关系，因此不做"必须启用"的限制。
+     */
+    public function requireOwnedRelationIncludingArchived($relationId)
+    {
+        $relation = SubAccountRelation::find($relationId);
+        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        return $relation;
+    }
+
+    /**
      * 关系定位：优先用关系 id，其次用 child_user_id（EZ-Theme 两者都会发送）。
+     * 用户端专用，只认启用中的关系。
      */
     public function requireOwnedRelationOrChild(User $parent, array $input)
     {
@@ -735,17 +803,15 @@ class SubAccountService
 
         if ($relationId !== null) {
             $relation = SubAccountRelation::find($relationId);
-            if ($relation && (int)$relation->parent_user_id === (int)$parent->id) {
+            if ($relation && (int)$relation->parent_user_id === (int)$parent->id
+                && (int)$relation->status === SubAccountRelation::STATUS_ENABLED) {
                 return $relation;
             }
         }
         if ($childUserId !== null) {
-            return $this->requireOwnedRelationByChildId($parent, $childUserId);
+            return $this->requireActiveOwnedRelationByChildId($parent, $childUserId);
         }
-        if ($relationId === null) {
-            abort(500, __('The sub-account relation does not exist'));
-        }
-        return $this->requireOwnedRelation($parent, $relationId);
+        return $this->requireActiveOwnedRelation($parent, $relationId);
     }
 
     // ------------------------------------------------------------ 修改/解绑
@@ -754,7 +820,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -870,7 +936,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -906,7 +972,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -949,11 +1015,21 @@ class SubAccountService
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
         if (!$idOrChildId) abort(500, __('The sub-account relation does not exist'));
 
-        $relation = SubAccountRelation::where('id', $idOrChildId)
+        // 已归档关系（同属当前主账号）明确报“已解绑”，而不是退化成权限错误
+        $ownedAny = SubAccountRelation::where('id', $idOrChildId)
             ->where('parent_user_id', $parent->id)
             ->first();
+        if ($ownedAny && (int)$ownedAny->status !== SubAccountRelation::STATUS_ENABLED) {
+            abort(500, __('The sub-account has been unbound'));
+        }
+
+        // 只有启用中的关系可读取订阅；归档关系即使属于当前主账号也拒绝
+        $relation = SubAccountRelation::where('id', $idOrChildId)
+            ->where('parent_user_id', $parent->id)
+            ->where('status', SubAccountRelation::STATUS_ENABLED)
+            ->first();
         if (!$relation) {
-            $relation = $this->requireOwnedRelationByChildId($parent, $idOrChildId);
+            $relation = $this->requireActiveOwnedRelationByChildId($parent, $idOrChildId);
         }
         $child = User::find($relation->child_user_id);
         if (!$child) abort(500, __('The user does not exist'));
@@ -970,7 +1046,7 @@ class SubAccountService
     {
         if (!$this->isEnabled()) abort(500, __('Sub-account is not enabled'));
         if ($this->isSubAccount($parent)) abort(403, __('Sub-account is not allowed to manage sub-accounts'));
-        $relation = $this->requireOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
+        $relation = $this->requireActiveOwnedRelation($parent, isset($input['id']) ? $input['id'] : null);
 
         DB::beginTransaction();
         try {
@@ -1077,8 +1153,7 @@ class SubAccountService
      */
     public function adminDetail($relationId)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         $parent = User::find($relation->parent_user_id);
         $child = User::find($relation->child_user_id);
@@ -1211,8 +1286,7 @@ class SubAccountService
 
     public function adminUpdate($relationId, array $input, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {
@@ -1268,8 +1342,7 @@ class SubAccountService
 
     public function adminResetSubscribe($relationId, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {
@@ -1298,8 +1371,7 @@ class SubAccountService
 
     public function adminResetTraffic($relationId, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {
@@ -1328,8 +1400,7 @@ class SubAccountService
     }
     public function adminUnbind($relationId, $actorId, $ip)
     {
-        $relation = SubAccountRelation::find($relationId);
-        if (!$relation) abort(500, __('The sub-account relation does not exist'));
+        $relation = $this->requireOwnedRelationIncludingArchived($relationId);
 
         DB::beginTransaction();
         try {

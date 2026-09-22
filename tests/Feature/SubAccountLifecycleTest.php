@@ -117,7 +117,7 @@ class SubAccountLifecycleTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $child->email,
-            'code' => $this->seedBindCode($child->email),
+            'code' => $this->seedBindCode($parent, $child->email),
             'traffic_limit' => 2048,
             'remark' => 'rebound',
         ]);
@@ -163,7 +163,7 @@ class SubAccountLifecycleTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $child->email,
-            'code' => $this->seedBindCode($child->email),
+            'code' => $this->seedBindCode($parent, $child->email),
         ]);
         $http->assertStatus(500);
         $this->assertSame('This account already has sub-accounts', $http->json('message'));
@@ -231,7 +231,7 @@ class SubAccountLifecycleTest extends SubAccountTestCase
         $http = $this->postJson('/api/v1/user/sub-account/bind', [
             'auth_data' => $this->authDataFor($parent),
             'email' => $thirdEmail,
-            'code' => $this->seedBindCode($thirdEmail),
+            'code' => $this->seedBindCode($parent, $thirdEmail),
         ]);
         $http->assertStatus(500);
         $this->assertSame(2, count($this->service()->activeChildIdsForParent($parent->id)));
@@ -251,7 +251,7 @@ class SubAccountLifecycleTest extends SubAccountTestCase
         try {
             $service->bind($parent, [
                 'email' => $child->email,
-                'code' => $this->seedBindCode($child->email),
+                'code' => $this->seedBindCode($parent, $child->email),
             ], '127.0.0.1');
             $this->fail('并发/重复绑定必须失败');
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {

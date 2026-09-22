@@ -131,6 +131,21 @@ class AdminRoute
             $router->post('/sub-account/unbind', 'V1\\Admin\\SubAccountController@unbind');
             $router->post('/sub-account/reset-subscribe', 'V1\\Admin\\SubAccountController@resetSubscribe');
             $router->post('/sub-account/reset-traffic', 'V1\\Admin\\SubAccountController@resetTraffic');
+            // Checkin 管理（EZ-Theme 签到：规则/日志/概览；开关走 config 的 theme_checkin_enable）
+            $router->get ('/checkin/config', 'V1\\Admin\\CheckinController@config');
+            $router->get ('/checkin/status', 'V1\\Admin\\CheckinController@status');
+            $router->get ('/checkin/reward/fetch', 'V1\\Admin\\CheckinController@rewardFetch');
+            $router->post('/checkin/reward/save', 'V1\\Admin\\CheckinController@rewardSave');
+            $router->post('/checkin/reward/toggle', 'V1\\Admin\\CheckinController@rewardToggle');
+            $router->post('/checkin/reward/drop', 'V1\\Admin\\CheckinController@rewardDrop');
+            $router->get ('/checkin/log/fetch', 'V1\\Admin\\CheckinController@logFetch');
+            // Promotion 管理（活动弹窗配置 + 行为记录）
+            $router->get ('/promotion/fetch', 'V1\\Admin\\PromotionController@fetch');
+            $router->get ('/promotion/detail', 'V1\\Admin\\PromotionController@detail');
+            $router->post('/promotion/save', 'V1\\Admin\\PromotionController@save');
+            $router->post('/promotion/drop', 'V1\\Admin\\PromotionController@drop');
+            $router->get ('/promotion/record/fetch', 'V1\\Admin\\PromotionController@recordFetch');
+            $router->get ('/promotion/status', 'V1\\Admin\\PromotionController@status');
             // Stat
             $router->get ('/stat/getStat', 'V1\\Admin\\StatController@getStat');
             $router->get ('/stat/getOverride', 'V1\\Admin\\StatController@getOverride');

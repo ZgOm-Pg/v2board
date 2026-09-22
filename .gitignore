@@ -25,3 +25,6 @@ public/clients/*
 workerman.webman.php.pid
 workerman.log
 /_demo
+
+# 工具脚本生成的备份文件
+*.bak-*

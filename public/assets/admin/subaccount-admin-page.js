@@ -18,12 +18,14 @@
      * 常量
      * ================================================================== */
 
-    var ROOT_ID = 'subaccount-admin-root';
-    var ROUTE_PREFIX = '#/sub-accounts';
+    // 由 umi.js 原生路由 /sub-accounts 提供的页面容器 id（见 tools/patch-subaccount-admin.php）
+    var MOUNT_ID = 'subaccount-admin-root';
     var MENU_TEXT = '子账号管理';
-    var MENU_FLAG = 'data-subaccount-menu';
     var PAGE_SIZE = 20;
     var MAX_PAGE_SIZE = 100;
+
+    /** 页面挂载状态（诊断用，仅在控制台读取，不影响页面） */
+    var diagnostics = { ok: false, mode: null, attempts: 0 };
 
     var RELATION_STATUS = { 1: '启用', 0: '停用' };
     var CREATE_TYPE = { 1: '父账号新建', 0: '绑定已有账号' };
@@ -126,16 +128,6 @@
         return mail + ' / #' + text(userId);
     }
 
-    function debounce(fn, wait) {
-        var timer = null;
-        return function () {
-            if (timer) window.clearTimeout(timer);
-            timer = window.setTimeout(function () {
-                timer = null;
-                fn();
-            }, wait);
-        };
-    }
 
     /* ==================================================================
      * API
@@ -235,199 +227,40 @@
     }
 
     /* ==================================================================
-     * 菜单注入
+     * 原生页面渲染
+     *
+     * 页面由 umi 原生路由 /sub-accounts 提供的容器 #subaccount-admin-root 承载。
+     * 本脚本只负责在该容器内渲染管理界面：
+     *   - 不扫描 / 克隆 / 修改侧边栏菜单；
+     *   - 不做 hash 跳转、不做全屏遮罩、不做轮询。
      * ================================================================== */
 
-    var MENU_RETRY_DELAYS = [0, 250, 600, 1200, 2200, 3500, 5000, 8000];
+    function buildHeader() {
+        var bar = el('div', 'sa-header');
+        var title = el('div', 'sa-header-title');
+        title.appendChild(el('span', 'sa-header-name', MENU_TEXT));
+        title.appendChild(el('span', 'sa-header-sub', '主账号 / 子账号关系与额度管理'));
+        bar.appendChild(title);
 
-    function isUserMenuHref(href) {
-        return !!href && href.indexOf('#/user') !== -1;
+        var actions = el('div', 'sa-header-actions');
+        var refresh = el('button', 'sa-btn', '刷新当前页');
+        refresh.type = 'button';
+        refresh.addEventListener('click', function () {
+            reloadActiveTab();
+        });
+        var back = el('button', 'sa-btn sa-btn-ghost', '返回用户管理');
+        back.type = 'button';
+        back.addEventListener('click', function () {
+            location.hash = '#/user';
+        });
+        actions.appendChild(refresh);
+        actions.appendChild(back);
+        bar.appendChild(actions);
+        return bar;
     }
 
-    /**
-     * 定位原生「用户管理」菜单项。
-     * 注意：注入项的 href 是 "#/sub-accounts"（包含 "#/user"? 不包含，但
-     * "#/sub-accounts" 会被 '#/user' 之外的规则干扰），因此这里同时用
-     * href 片段与 data 标记双重排除，避免把自己当成原生项。
-     */
-    function isInjectedItem(node) {
-        return node.getAttribute(MENU_FLAG) === '1' ||
-            node.getAttribute('data-subaccount-menu') === '1' ||
-            String(node.getAttribute('href') || '').indexOf('#/sub-accounts') !== -1;
-    }
-
-    function findUserMenuItem() {
-        var links = document.querySelectorAll('a[href]');
-        var i;
-        for (i = 0; i < links.length; i++) {
-            if (isInjectedItem(links[i])) continue;
-            if (isUserMenuHref(links[i].getAttribute('href'))) return links[i];
-        }
-        // fallback: 仅当找不到 href 匹配时，才用中文链接文案匹配
-        for (i = 0; i < links.length; i++) {
-            if (isInjectedItem(links[i])) continue;
-            var content = (links[i].textContent || '').replace(/\s+/g, '');
-            if (content === '用户管理' || content.indexOf('用户管理') === 0) return links[i];
-        }
-        return null;
-    }
-
-    /**
-     * 找到原生「用户管理」的可克隆菜单节点。
-     * 优先使用其 <li> 祖先（侧边栏结构通常是 ul > li > a），
-     * 这样克隆后插入的是同级菜单项，而不是嵌套 <a>。
-     */
-    function resolveMenuHost(link) {
-        var list = closestListAncestor(link);
-        if (list && list.parentNode) {
-            var item = closestListItem(list, link);
-            if (item) return { item: item, host: list };
-        }
-        // 结构不符合预期时退回：直接克隆 <a> 并作为其兄弟节点插入
-        return { item: link, host: link.parentNode };
-    }
-
-    function closestListAncestor(node) {
-        var current = node.parentNode;
-        while (current) {
-            if (current.tagName === 'UL' || current.tagName === 'OL') return current;
-            current = current.parentNode;
-        }
-        return null;
-    }
-
-    function closestListItem(list, link) {
-        var current = link.parentNode;
-        while (current && current !== list) {
-            if (current.tagName === 'LI') return current;
-            current = current.parentNode;
-        }
-        return null;
-    }
-
-    function ensureMenu() {
-        var container = byId(ROOT_ID);
-        // 已有注入则直接返回（双保险：data 属性 + href 检查）
-        if (container && container.querySelector('[' + MENU_FLAG + '="1"]')) return true;
-        if (document.querySelector('[' + MENU_FLAG + '="1"]')) return true;
-        var existing = document.querySelector('a[href*="#/sub-accounts"]');
-        if (existing) {
-            existing.setAttribute(MENU_FLAG, '1');
-            return true;
-        }
-
-        var userLink = findUserMenuItem();
-        if (!userLink || !userLink.parentNode) return false;
-
-        var resolved = resolveMenuHost(userLink);
-        var nativeItem = resolved.item;
-        var host = resolved.host;
-        if (!host) return false;
-
-        var node = nativeItem.cloneNode(true);
-        node.setAttribute(MENU_FLAG, '1');
-        node.setAttribute('data-subaccount-menu', '1');
-
-        // 找到克隆体内对应的链接并改成子账号路由
-        var clonedLinks = node.tagName === 'A' ? [node] : node.querySelectorAll('a[href]');
-        for (var k = 0; k < clonedLinks.length; k++) {
-            if (isInjectedItem(clonedLinks[k])) continue;
-            if (isUserMenuHref(clonedLinks[k].getAttribute('href'))) {
-                clonedLinks[k].setAttribute('href', subAccountsHref(clonedLinks[k].getAttribute('href')));
-            }
-        }
-        if (node.tagName === 'A' && !isUserMenuHref(node.getAttribute('href'))) {
-            node.setAttribute('href', ROUTE_PREFIX);
-        }
-
-        // 克隆后清掉 antd 的选中态/子菜单展开态，避免视觉错位
-        node.classList.remove('ant-menu-item-selected', 'ant-menu-item-active', 'ant-menu-submenu-selected');
-        var actives = node.querySelectorAll('.ant-menu-item-selected, .ant-menu-item-active');
-        for (var i = 0; i < actives.length; i++) {
-            actives[i].classList.remove('ant-menu-item-selected', 'ant-menu-item-active');
-        }
-        // 替换文案（保留图标结构，只改带文本的节点）
-        var replaced = false;
-        var walker = node.querySelectorAll('span, a');
-        for (var j = 0; j < walker.length; j++) {
-            if (hasOwnText(walker[j])) {
-                walker[j].textContent = MENU_TEXT;
-                replaced = true;
-                break;
-            }
-        }
-        if (!replaced && node.tagName === 'A') node.textContent = MENU_TEXT;
-
-        host.insertBefore(node, nativeItem.nextSibling);
-
-        // hash 路由：#/sub-accounts 不注册在 SPA 内，SPA 会显示 404 内容，
-        // 此处会同步触发 hashchange -> 显示遮罩层。
-        node.addEventListener('click', function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            setHash(ROUTE_PREFIX);
-            scheduleVisibility();
-            window.setTimeout(scheduleVisibility, 60);
-        }, true);
-
-        log('菜单已注入，位于「用户管理」之后');
-        return true;
-    }
-
-    function hasOwnText(node) {
-        for (var i = 0; i < node.childNodes.length; i++) {
-            var child = node.childNodes[i];
-            if (child.nodeType === 3 && String(child.nodeValue || '').replace(/\s+/g, '') !== '') return true;
-        }
-        return false;
-    }
-
-    function subAccountsHref(nativeHref) {
-        var href = nativeHref || '#/user/list';
-        var hashIndex = href.indexOf('#');
-        if (hashIndex === -1) return ROUTE_PREFIX;
-        return href.substring(0, hashIndex) + ROUTE_PREFIX;
-    }
-
-    function setHash(hash) {
-        if (location.hash === hash) return;
-        try {
-            location.hash = hash;
-        } catch (e) {
-            log('设置 hash 失败', e);
-        }
-    }
-
-    function ensureMenuWithRetry() {
-        var attempt = 0;
-        function run() {
-            var ok = false;
-            try {
-                ok = ensureMenu();
-            } catch (e) {
-                log('菜单注入异常', e);
-            }
-            if (ok) return;
-            attempt += 1;
-            if (attempt < MENU_RETRY_DELAYS.length) {
-                window.setTimeout(run, MENU_RETRY_DELAYS[attempt]);
-            }
-        }
-        run();
-    }
-
-    /* ==================================================================
-     * 遮罩层 / 内联样式兜底
-     * ================================================================== */
-
-    function buildOverlay() {
-        var root = el('div', 'sa-root');
-        root.id = ROOT_ID;
-        root.style.position = 'fixed';
-        root.style.zIndex = '1000';
-        root.style.background = '#fff';
-        root.style.overflow = 'auto';
-        root.style.display = 'none';
+    function buildPage() {
+        var root = el('div', 'sa-root sa-page');
         root.appendChild(buildHeader());
 
         var tabsBar = el('div', 'sa-tabbar');
@@ -461,189 +294,47 @@
         return root;
     }
 
-    function buildHeader() {
-        var bar = el('div', 'sa-header');
-        var title = el('div', 'sa-header-title');
-        title.appendChild(el('span', 'sa-header-name', MENU_TEXT));
-        title.appendChild(el('span', 'sa-header-sub', '独立页面 · 不依赖前端主题'));
-        bar.appendChild(title);
-
-        var actions = el('div', 'sa-header-actions');
-        var refresh = el('button', 'sa-btn', '刷新当前页');
-        refresh.type = 'button';
-        refresh.addEventListener('click', function () {
-            reloadActiveTab();
-        });
-        var back = el('button', 'sa-btn sa-btn-ghost', '返回用户管理');
-        back.type = 'button';
-        back.addEventListener('click', function () {
-            hideRoot();
-            var userItem = findUserMenuItem();
-            var href = userItem ? userItem.getAttribute('href') : '#/user/list';
-            setHash(href && href.indexOf('#') !== -1 ? href.substring(href.indexOf('#')) : '#/user/list');
-        });
-        actions.appendChild(refresh);
-        actions.appendChild(back);
-        bar.appendChild(actions);
-        return bar;
+    /**
+     * 把管理界面挂载到原生路由容器内（幂等）。
+     * - 首次进入：容器存在但未挂载 -> 构建页面；
+     * - 路由切换后 SPA 可能重建容器（新元素）或清空容器内容
+     *   （同一元素、子节点被移除）-> 两种情况都会重新构建。
+     */
+    function mountPage() {
+        var container = document.getElementById(MOUNT_ID);
+        if (!container) return false;
+        if (container.getAttribute('data-sa-mounted') === '1') {
+            if (container.querySelector('.sa-page')) return true;
+            // 内容被 SPA 清空：标记失效，重新渲染
+            while (container.firstChild) container.removeChild(container.firstChild);
+        }
+        container.setAttribute('data-sa-mounted', '1');
+        container.appendChild(buildPage());
+        state.root = container;
+        switchTab('relations');
+        return true;
     }
 
     /**
-     * 当前是否处于子账号路由。
-     * 抹掉 query 后再比对，兼容 #/sub-accounts?x=1 之类的写法。
+     * 仅用于检测原生路由容器是否出现（不触碰侧边栏菜单）。
+     * observer 常驻：umi 前进/后退会重建或清空容器，需要重新挂载。
      */
-    function isRouteActive() {
-        var hash = String(location.hash || '');
-        var cut = hash.indexOf('?');
-        if (cut !== -1) hash = hash.substring(0, cut);
-        return hash.indexOf(ROUTE_PREFIX) === 0;
-    }
-
-    /** 让遮罩层避开 SPA 顶部 header 与左侧 sidebar */
-    function applyOffset() {
-        if (!state.root) return;
-        var bounds = measureChrome();
-        var style = state.root.style;
-        if (!bounds) {
-            style.top = '0px';
-            style.left = '0px';
-            style.right = '0px';
-            style.bottom = '0px';
-            style.width = '';
-            style.height = '';
-            return;
-        }
-        style.top = bounds.top + 'px';
-        style.left = bounds.left + 'px';
-        style.right = bounds.right + 'px';
-        style.bottom = bounds.bottom + 'px';
-        style.width = '';
-        style.height = '';
-    }
-
-    /**
-     * 尝试测量 SPA 外壳：
-     *  - 顶部 header：贴顶的横幅（含 header/.ant-layout-header/.ant-pro-global-header）
-     *  - 左侧 sidebar：贴左的竖向色块（含 aside/.ant-layout-sider/.ant-pro-sider）
-     * 返回 null 表示测量失败 -> 使用全屏兜底。
-     */
-    function measureChrome() {
-        var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-        var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-        if (!viewportWidth || !viewportHeight) return null;
-
-        var top = 0;
-        var left = 0;
-        var found = false;
-
-        var header = pickHeader(viewportWidth);
-        if (header) {
-            var headerRect = header.getBoundingClientRect();
-            if (headerRect.height > 10 && headerRect.bottom > 0 && headerRect.bottom <= viewportHeight / 2) {
-                top = Math.round(headerRect.bottom);
-                found = true;
+    function watchMount() {
+        mountPage();
+        if (window.MutationObserver) {
+            try {
+                var observer = new MutationObserver(function () {
+                    mountPage();
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            } catch (e) {
+                log('容器检测 observer 注册失败', e);
             }
         }
-
-        var sidebar = pickSidebar(viewportHeight, top);
-        if (sidebar) {
-            var sidebarRect = sidebar.getBoundingClientRect();
-            if (sidebarRect.width > 40 && sidebarRect.right > 0 && sidebarRect.right <= viewportWidth * 0.6) {
-                left = Math.round(sidebarRect.right);
-                found = true;
-            }
-        }
-
-        if (!found) return null;
-        if (viewportWidth - left < 240) return null; // 剩余空间过窄，视为测量失败
-        if (viewportHeight - top < 200) return null;
-        // right / bottom 使用 0：容器本身 fixed，靠 top/left/right/bottom 撑满剩余空间
-        return { top: top, left: left, right: 0, bottom: 0 };
+        window.addEventListener('hashchange', function () {
+            mountPage();
+        });
     }
-
-    function pickHeader(viewportWidth) {
-        var selectors = ['.ant-layout-header', '.ant-pro-global-header', 'header', '#root > div > header'];
-        for (var i = 0; i < selectors.length; i++) {
-            var nodes = document.querySelectorAll(selectors[i]);
-            for (var j = 0; j < nodes.length; j++) {
-                var rect = nodes[j].getBoundingClientRect();
-                if (rect.height > 10 && rect.height < 160 && rect.top <= 4 && rect.width >= viewportWidth * 0.5) {
-                    return nodes[j];
-                }
-            }
-        }
-        return null;
-    }
-
-    function pickSidebar(viewportHeight, topOffset) {
-        var selectors = ['.ant-layout-sider', '.ant-pro-sider', 'aside'];
-        for (var i = 0; i < selectors.length; i++) {
-            var nodes = document.querySelectorAll(selectors[i]);
-            for (var j = 0; j < nodes.length; j++) {
-                var rect = nodes[j].getBoundingClientRect();
-                if (rect.width >= 80 && rect.width <= 400 && rect.left <= 4 && rect.height >= viewportHeight * 0.3) {
-                    return nodes[j];
-                }
-            }
-        }
-        // 兜底：扫描贴左的竖向 fixed/absolute 元素
-        var all = document.body.children;
-        for (var k = 0; k < all.length; k++) {
-            var node = all[k];
-            if (node === state.root) continue;
-            var style = window.getComputedStyle ? window.getComputedStyle(node) : null;
-            if (!style || (style.position !== 'fixed' && style.position !== 'absolute')) continue;
-            var box = node.getBoundingClientRect();
-            if (box.left <= 4 && box.width >= 80 && box.width <= 400 && box.height >= Math.max(200, viewportHeight - topOffset - 40)) {
-                return node;
-            }
-        }
-        return null;
-    }
-
-    function showRoot() {
-        if (!state.root) return;
-        state.root.style.display = 'block';
-        applyOffset();
-    }
-
-    function hideRoot() {
-        if (!state.root) return;
-        state.root.style.display = 'none';
-        state.visible = false;
-    }
-
-    function applyVisibility() {
-        var active = isRouteActive();
-        if (!active) {
-            if (state.visible) hideRoot();
-            return;
-        }
-        if (!state.root) {
-            state.root = buildOverlay();
-            document.body.appendChild(state.root);
-            switchTab('relations');
-        }
-        if (!state.visible) {
-            state.visible = true;
-            showRoot();
-            if (state.activeTab === 'settings') {
-                loadSettings();
-            } else if (state.activeTab === 'audit') {
-                if (!state.audit.loaded) loadAudit();
-            } else if (!state.relations.loaded) {
-                loadRelations();
-            }
-        }
-    }
-
-    var scheduleVisibility = debounce(function () {
-        try {
-            applyVisibility();
-        } catch (e) {
-            log('渲染遮罩层异常', e);
-        }
-    }, 60);
 
     /* ==================================================================
      * 通用 UI 组件
@@ -1492,48 +1183,8 @@
      * 启动
      * ================================================================== */
 
-    var initMenu = debounce(function () {
-        ensureMenuWithRetry();
-    }, 150);
-
-    function onResize() {
-        if (state.visible) applyOffset();
-    }
-
     function start() {
-        ensureMenuWithRetry();
-        scheduleVisibility();
-
-        // hashchange: SPA 通过 pushState / location.hash 切换路由
-        window.addEventListener('hashchange', function () {
-            scheduleVisibility();
-            initMenu();
-        });
-
-        // MutationObserver: SPA 重新渲染侧边栏时补注入
-        if (window.MutationObserver) {
-            var observer = new MutationObserver(function () {
-                initMenu();
-            });
-            try {
-                observer.observe(document.body, { childList: true, subtree: true });
-            } catch (e) {
-                log('MutationObserver 注册失败', e);
-            }
-        }
-
-        // 轮询兜底：SPA 有时不触发 hashchange（例如 replaceState）
-        var lastHash = String(location.hash || '');
-        window.setInterval(function () {
-            var hash = String(location.hash || '');
-            if (hash !== lastHash) {
-                lastHash = hash;
-                scheduleVisibility();
-                initMenu();
-            }
-        }, 300);
-
-        window.addEventListener('resize', onResize);
+        watchMount();
     }
 
     if (document.readyState === 'loading') {

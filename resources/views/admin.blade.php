@@ -1,11 +1,20 @@
+@php
+    // 静态资源指纹：后台资源一旦变化，URL 随之变化，避免浏览器 / CDN 继续使用旧 JS/CSS
+    $assetFiles = array_merge(
+        glob(public_path('assets/admin/*.js')) ?: [],
+        glob(public_path('assets/admin/*.css')) ?: []
+    );
+    $assetVer = $version . '-' . ($assetFiles ? max(array_map('filemtime', $assetFiles)) : time());
+@endphp
 <!DOCTYPE html>
 <html>
 
 <head>
-    <link rel="stylesheet" href="/assets/admin/components.chunk.css?v={{$version}}">
-    <link rel="stylesheet" href="/assets/admin/umi.css?v={{$version}}">
-    <link rel="stylesheet" href="/assets/admin/custom.css?v={{$version}}">
-    <link rel="stylesheet" href="/assets/admin/subaccount-admin-page.css?v={{$version}}">
+    <link rel="stylesheet" href="/assets/admin/components.chunk.css?v={{$assetVer}}">
+    <link rel="stylesheet" href="/assets/admin/umi.css?v={{$assetVer}}">
+    <link rel="stylesheet" href="/assets/admin/custom.css?v={{$assetVer}}">
+    <link rel="stylesheet" href="/assets/admin/subaccount-admin-page.css?v={{$assetVer}}">
+    <link rel="stylesheet" href="/assets/admin/checkin-promotion-admin.css?v={{$assetVer}}">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
     <title>{{$title}}</title>
@@ -19,7 +28,7 @@
                 header: '{{$theme_header}}',
                 color: '{{$theme_color}}',
             },
-            version: '{{$version}}',
+            version: '{{$assetVer}}',
             background_url: '{{$background_url}}',
             logo: '{{$logo}}',
             secure_path: '{{$secure_path}}'
@@ -29,11 +38,12 @@
 
 <body>
 <div id="root"></div>
-<script src="/assets/admin/vendors.async.js?v={{$version}}"></script>
-<script src="/assets/admin/components.async.js?v={{$version}}"></script>
-<script src="/assets/admin/umi.js?v={{$version}}"></script>
-<script src="/assets/admin/custom.js?v={{$version}}"></script>
-<script src="/assets/admin/subaccount-admin-page.js?v={{$version}}"></script>
+<script src="/assets/admin/vendors.async.js?v={{$assetVer}}"></script>
+<script src="/assets/admin/components.async.js?v={{$assetVer}}"></script>
+<script src="/assets/admin/umi.js?v={{$assetVer}}"></script>
+<script src="/assets/admin/custom.js?v={{$assetVer}}"></script>
+<script src="/assets/admin/subaccount-admin-page.js?v={{$assetVer}}"></script>
+<script src="/assets/admin/checkin-promotion-admin-page.js?v={{$assetVer}}"></script>
 </body>
 
 </html>

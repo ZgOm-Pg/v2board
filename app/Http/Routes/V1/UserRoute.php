@@ -28,6 +28,13 @@ class UserRoute
             $router->post('/removeActiveSession', 'V1\User\UserController@removeActiveSession');
             // Checkin
             $router->post('/checkin', 'V1\User\CheckinController@checkin');
+            // EZ-Theme 兼容签到（ThemeCheckinService；与 v3board 自带 POST /checkin 互不影响）
+            $router->get ('/checkin/status', 'V1\User\ThemeCheckinController@status');
+            $router->post('/checkin/claim', 'V1\User\ThemeCheckinController@claim');
+            // 活动弹窗（EZ-Theme 契约；claim 只写行为记录并返回优惠码）
+            $router->get ('/promotion/popup', 'V1\User\PromotionController@popup');
+            $router->post('/promotion/claim', 'V1\User\PromotionController@claim');
+            $router->post('/promotion/record', 'V1\User\PromotionController@record');
             // Order
             $router->post('/order/save', 'V1\User\OrderController@save');
             $router->post('/order/checkout', 'V1\User\OrderController@checkout');
