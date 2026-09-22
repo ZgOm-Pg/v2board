@@ -96,10 +96,12 @@ POST /api/v1/{secure_path}/sub-account/unbind           解绑
 ```
 
 后台页面是**原生页面**：菜单项与路由由 umi 编译产物 `public/assets/admin/umi.js`
-中的原生菜单数组 / 路由表提供（`href: "/sub-accounts"`、`path: "/sub-accounts"`），
+中的原生菜单数组 / 路由表提供（`href: "/subaccounts"`、`path: "/subaccounts"`；旧版为 `/sub-accounts`，补丁脚本会原位迁移），
 页面容器为 `<div id="subaccount-admin-root"></div>`；样式与逻辑在
 `public/assets/admin/subaccount-admin-page.{js,css}`（在 `resources/views/admin.blade.php` 中加载），
 脚本只在原生路由容器内挂载界面，**不扫描、不克隆、不修改侧边栏菜单**，无遮罩层与 hash 轮询。
+页面头部只保留一个「刷新」按钮（与「提前续期记录」「订阅覆盖记录」页面写法一致：
+`<button class="btn btn-sm btn-outline-primary">刷新</button>`），不再提供「返回用户管理」。
 
 由于 umi.js 是编译产物，菜单/路由补丁由脚本幂等写入：
 
