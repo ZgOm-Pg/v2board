@@ -306,7 +306,8 @@
 
         var page = el('div', 'cp-page');
         page.appendChild(buildPageHeader('签到管理', '每日签到规则、日志与开关（默认关闭）', [
-            buildButton('刷新当前页', 'cp-btn', function () { reloadActive(); })
+            // 与原生「提前续期记录 /newPeriodLog」「订阅覆盖记录 /planChangeLog」页面一致的刷新按钮
+            buildButton('刷新', 'btn btn-sm btn-outline-primary', function () { reloadActive(); })
         ]));
 
         var tabs = buildTabs([
@@ -653,7 +654,7 @@
                 switchTab('list');
                 renderList();
             }),
-            buildButton('刷新当前页', 'cp-btn', function () {
+            buildButton('刷新', 'btn btn-sm btn-outline-primary', function () {
                 if (state.activeTab === 'records') loadRecords(); else loadList();
             })
         ]));
