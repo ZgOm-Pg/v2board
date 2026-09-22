@@ -1,9 +1,8 @@
 /*!
  * 子账号管理 - 独立后台页面（自包含）
  *
- * 该脚本不依赖编译产物 / 前端主题，也不注册 umi 路由：
- *   - 通过 stable href ("#/user") 定位原生「用户管理」菜单并克隆插入「子账号管理」
- *   - 在 body 上创建独立遮罩层容器 (#subaccount-admin-root)，仅在 hash 以 #/sub-accounts 开头时显示
+ * 该脚本不依赖编译产物 / 前端主题：
+ *   - 页面容器由 umi.js 原生路由 /subaccounts 提供（#subaccount-admin-root）
  *   - 直接调用后端接口 base = '/' + window.settings.secure_path
  *
  * 纯浏览器 JS（ES5/ES2015 安全），无 import/export/module，无构建步骤。
@@ -18,7 +17,7 @@
      * 常量
      * ================================================================== */
 
-    // 由 umi.js 原生路由 /sub-accounts 提供的页面容器 id（见 tools/patch-subaccount-admin.php）
+    // 由 umi.js 原生路由 /subaccounts 提供的页面容器 id（见 tools/patch-subaccount-admin.php）
     var MOUNT_ID = 'subaccount-admin-root';
     var MENU_TEXT = '子账号管理';
     var PAGE_SIZE = 20;
@@ -229,7 +228,7 @@
     /* ==================================================================
      * 原生页面渲染
      *
-     * 页面由 umi 原生路由 /sub-accounts 提供的容器 #subaccount-admin-root 承载。
+     * 页面由 umi 原生路由 /subaccounts 提供的容器 #subaccount-admin-root 承载。
      * 本脚本只负责在该容器内渲染管理界面：
      *   - 不扫描 / 克隆 / 修改侧边栏菜单；
      *   - 不做 hash 跳转、不做全屏遮罩、不做轮询。
@@ -243,18 +242,13 @@
         bar.appendChild(title);
 
         var actions = el('div', 'sa-header-actions');
-        var refresh = el('button', 'sa-btn', '刷新当前页');
+        // 与原生「提前续期记录 /newPeriodLog」「订阅覆盖记录 /planChangeLog」页面的刷新按钮保持一致的写法与样式
+        var refresh = el('button', 'btn btn-sm btn-outline-primary', '刷新');
         refresh.type = 'button';
         refresh.addEventListener('click', function () {
             reloadActiveTab();
         });
-        var back = el('button', 'sa-btn sa-btn-ghost', '返回用户管理');
-        back.type = 'button';
-        back.addEventListener('click', function () {
-            location.hash = '#/user';
-        });
         actions.appendChild(refresh);
-        actions.appendChild(back);
         bar.appendChild(actions);
         return bar;
     }

@@ -1,7 +1,7 @@
 /*!
  * 子账号管理 - 后台原生页面样式
  *
- * 页面由 umi 原生路由 /sub-accounts 提供容器 #subaccount-admin-root，
+ * 页面由 umi 原生路由 /subaccounts 提供容器 #subaccount-admin-root，
  * 所有选择器均在该容器内作用域限定：
  *   - 不使用 fixed 遮罩，不使用大 z-index；
  *   - 字体/配色沿用后台自身的继承值，保证与 V2Board 后台一致。
